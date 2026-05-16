@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.next/
+coverage/
+contracts/out/
+contracts/cache/
+contracts/lib/
+.env
+*.db
+*.sqlite
