@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import { verifyPaymentProof } from "./verifier.js";
+import type { FacilitateRequest, FacilitateResponse } from "./types.js";
 
 const app = express();
 const port = Number(process.env.FACILITATOR_PORT ?? 3001);
@@ -28,6 +30,34 @@ app.get("/payment-details", (req, res) => {
     amount: amount ?? "1000000",
     asset: asset ?? process.env.USDC_ADDRESS ?? "",
   });
+});
+
+app.post("/facilitate", async (req, res) => {
+  const body = req.body as FacilitateRequest;
+
+  if (!body.paymentDetails || !body.paymentProof) {
+    res.status(400).json({
+      success: false,
+      error: "Missing paymentDetails or paymentProof",
+    } as FacilitateResponse);
+    return;
+  }
+
+  const { valid, error } = await verifyPaymentProof(
+    body.paymentDetails,
+    body.paymentProof
+  );
+
+  if (!valid) {
+    res.status(402).json({ success: false, error } as FacilitateResponse);
+    return;
+  }
+
+  res.json({
+    success: true,
+    settlementTxHash: "0xpending",
+    accessToken: `preview:${Date.now()}`,
+  } as FacilitateResponse);
 });
 
 app.listen(port, () => {
