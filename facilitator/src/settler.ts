@@ -2,8 +2,10 @@ import { decodeEventLog, maxUint256, type Hex } from "viem";
 import {
   getOperatorWalletClient,
   publicClient,
+  SKILL_REGISTRY_ADDRESS,
   X402_ESCROW_ADDRESS,
   FACILITATOR_FEE_BPS,
+  ERC8004_REPUTATION_ADDRESS,
 } from "./config.js";
 import type { X402PaymentDetails, X402PaymentProof, SettlementResult } from "./types.js";
 import { usedNonces } from "./verifier.js";
@@ -35,6 +37,36 @@ const ERC20_ABI = [
     outputs: [{ name: "", type: "bool" }],
   },
 ] as const;
+
+const SKILL_REGISTRY_ABI = [
+  {
+    name: "recordJobCompletion", type: "function", stateMutability: "nonpayable",
+    inputs: [
+      { name: "skillId",         type: "uint256" },
+      { name: "reputationScore", type: "uint8"   },
+    ],
+    outputs: [],
+  },
+] as const;
+
+const ERC8004_REPUTATION_ABI = [
+  {
+    name: "giveFeedback", type: "function", stateMutability: "nonpayable",
+    inputs: [
+      { name: "agentId",     type: "uint256" },
+      { name: "scoreScaled", type: "int128"  },
+      { name: "decimals",    type: "uint8"   },
+      { name: "tag1",        type: "string"  },
+      { name: "tag2",        type: "string"  },
+      { name: "fileuri",     type: "string"  },
+      { name: "filehash",    type: "string"  },
+      { name: "extra",       type: "bytes32" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+const ZERO_BYTES32: Hex = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 const X402_ESCROW_ABI = [
   {
@@ -162,11 +194,60 @@ export async function settlePayment(
   const nonceKey = `${auth.from.toLowerCase()}:${auth.nonce}`;
   usedNonces.set(nonceKey, Number(auth.validBefore));
 
+  const score =
+    proof.reputationScore !== undefined
+      ? Math.max(0, Math.min(100, Math.round(proof.reputationScore)))
+      : 75;
+  let skillRegistryRepTx: Hex | undefined;
+  if (SKILL_REGISTRY_ADDRESS && auth.skillId) {
+    try {
+      skillRegistryRepTx = await walletClient.writeContract({
+        address: SKILL_REGISTRY_ADDRESS,
+        abi: SKILL_REGISTRY_ABI,
+        functionName: "recordJobCompletion",
+        args: [BigInt(auth.skillId), score],
+      });
+      await publicClient.waitForTransactionReceipt({ hash: skillRegistryRepTx });
+      console.log(`rep write skill=${auth.skillId} score=${score} tx=${skillRegistryRepTx}`);
+    } catch (err) {
+      console.warn("rep write failed:", err);
+    }
+  }
+
+  let erc8004Tx: Hex | undefined;
+  if (ERC8004_REPUTATION_ADDRESS && auth.skillId) {
+    try {
+      erc8004Tx = await walletClient.writeContract({
+        address: ERC8004_REPUTATION_ADDRESS,
+        abi: ERC8004_REPUTATION_ABI,
+        functionName: "giveFeedback",
+        args: [
+          BigInt(auth.skillId),
+          BigInt(score),
+          0,
+          "ledgerforge",
+          "x402-settle",
+          "",
+          "",
+          ZERO_BYTES32,
+        ],
+      });
+      await publicClient.waitForTransactionReceipt({ hash: erc8004Tx });
+      console.log(`erc8004 feedback skill=${auth.skillId} score=${score} tx=${erc8004Tx}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`erc8004 feedback failed: ${msg.slice(0, 200)}`);
+    }
+  }
+
   return {
     settlementTxHash: completeTx,
     pullTxHash: pullTx,
     createJobTxHash: createJobTx,
     completeJobTxHash: completeTx,
     escrowJobId: escrowJobId.toString(),
+    skillRegistryRepTxHash: skillRegistryRepTx,
+    erc8004FeedbackTxHash: erc8004Tx,
+    reputationScore: score,
   };
 }
