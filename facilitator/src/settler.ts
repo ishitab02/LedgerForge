@@ -1,0 +1,172 @@
+import { decodeEventLog, maxUint256, type Hex } from "viem";
+import {
+  getOperatorWalletClient,
+  publicClient,
+  X402_ESCROW_ADDRESS,
+  FACILITATOR_FEE_BPS,
+} from "./config.js";
+import type { X402PaymentDetails, X402PaymentProof, SettlementResult } from "./types.js";
+import { usedNonces } from "./verifier.js";
+
+const ERC20_ABI = [
+  {
+    name: "transferFrom", type: "function", stateMutability: "nonpayable",
+    inputs: [
+      { name: "from", type: "address" },
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "allowance", type: "function", stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "approve", type: "function", stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
+
+const X402_ESCROW_ABI = [
+  {
+    name: "createJob", type: "function", stateMutability: "nonpayable",
+    inputs: [
+      { name: "provider",          type: "address" },
+      { name: "token",             type: "address" },
+      { name: "amount",            type: "uint256" },
+      { name: "skillId",           type: "uint256" },
+      { name: "jobSpecURI",        type: "string"  },
+      { name: "facilitatorFeeBps", type: "uint256" },
+    ],
+    outputs: [{ name: "jobId", type: "uint256" }],
+  },
+  {
+    name: "completeJob", type: "function", stateMutability: "nonpayable",
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "event", name: "JobCreated", anonymous: false,
+    inputs: [
+      { name: "jobId",    type: "uint256", indexed: true  },
+      { name: "consumer", type: "address", indexed: true  },
+      { name: "provider", type: "address", indexed: true  },
+      { name: "skillId",  type: "uint256", indexed: false },
+      { name: "amount",   type: "uint256", indexed: false },
+      { name: "token",    type: "address", indexed: false },
+    ],
+  },
+  {
+    type: "event", name: "JobCompleted", anonymous: false,
+    inputs: [
+      { name: "jobId",          type: "uint256", indexed: true  },
+      { name: "paidToProvider", type: "uint256", indexed: false },
+      { name: "fee",            type: "uint256", indexed: false },
+    ],
+  },
+] as const;
+
+export async function settlePayment(
+  _details: X402PaymentDetails,
+  proof: X402PaymentProof
+): Promise<SettlementResult> {
+  const walletClient = getOperatorWalletClient();
+  const operator = walletClient.account.address;
+  const auth = proof.payload.authorization;
+  const totalAmount = BigInt(auth.amount);
+  const provider = auth.to as `0x${string}`;
+
+  if (!X402_ESCROW_ADDRESS) {
+    throw new Error("X402_ESCROW_ADDRESS not configured; cannot settle via escrow");
+  }
+
+  const pullTx = await walletClient.writeContract({
+    address: auth.token,
+    abi: ERC20_ABI,
+    functionName: "transferFrom",
+    args: [auth.from, operator, totalAmount],
+  });
+  await publicClient.waitForTransactionReceipt({ hash: pullTx });
+  console.log(`pulled ${totalAmount} tx=${pullTx}`);
+
+  const allowance = await publicClient.readContract({
+    address: auth.token,
+    abi: ERC20_ABI,
+    functionName: "allowance",
+    args: [operator, X402_ESCROW_ADDRESS],
+  });
+  if (allowance < totalAmount) {
+    const approveTx = await walletClient.writeContract({
+      address: auth.token,
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [X402_ESCROW_ADDRESS, maxUint256],
+    });
+    await publicClient.waitForTransactionReceipt({ hash: approveTx });
+    console.log(`approved escrow token=${auth.token} tx=${approveTx}`);
+  }
+
+  // keep the real consumer available to the indexer
+  const jobSpecURI = `x402://skill/${auth.skillId}/consumer/${auth.from.toLowerCase()}/nonce/${auth.nonce}`;
+  const createJobTx = await walletClient.writeContract({
+    address: X402_ESCROW_ADDRESS,
+    abi: X402_ESCROW_ABI,
+    functionName: "createJob",
+    args: [
+      provider,
+      auth.token,
+      totalAmount,
+      BigInt(auth.skillId),
+      jobSpecURI,
+      BigInt(FACILITATOR_FEE_BPS),
+    ],
+  });
+  const createReceipt = await publicClient.waitForTransactionReceipt({ hash: createJobTx });
+
+  let escrowJobId = 0n;
+  for (const log of createReceipt.logs) {
+    if (log.address.toLowerCase() !== X402_ESCROW_ADDRESS.toLowerCase()) continue;
+    try {
+      const decoded = decodeEventLog({ abi: X402_ESCROW_ABI, data: log.data, topics: log.topics });
+      if (decoded.eventName === "JobCreated") {
+        escrowJobId = (decoded.args as unknown as { jobId: bigint }).jobId;
+        break;
+      }
+    } catch {
+      /* skip unparseable */
+    }
+  }
+  if (escrowJobId === 0n) {
+    throw new Error(`createJob succeeded but JobCreated event not found in tx ${createJobTx}`);
+  }
+  console.log(`escrow job=${escrowJobId} tx=${createJobTx}`);
+
+  const completeTx = await walletClient.writeContract({
+    address: X402_ESCROW_ADDRESS,
+    abi: X402_ESCROW_ABI,
+    functionName: "completeJob",
+    args: [escrowJobId],
+  });
+  await publicClient.waitForTransactionReceipt({ hash: completeTx });
+  console.log(`complete job=${escrowJobId} tx=${completeTx}`);
+
+  const nonceKey = `${auth.from.toLowerCase()}:${auth.nonce}`;
+  usedNonces.set(nonceKey, Number(auth.validBefore));
+
+  return {
+    settlementTxHash: completeTx,
+    pullTxHash: pullTx,
+    createJobTxHash: createJobTx,
+    completeJobTxHash: completeTx,
+    escrowJobId: escrowJobId.toString(),
+  };
+}
