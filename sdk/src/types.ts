@@ -71,6 +71,14 @@ export interface SettlementReceipt {
   skillRegistryRepTxHash?: Hex;
   erc8004FeedbackTxHash?: Hex;
   reputationScore?: number;
+  txHashes?: {
+    settlement: Hex;
+    pull?: Hex;
+    createJob?: Hex;
+    completeJob?: Hex;
+    skillRegistryRep?: Hex;
+    erc8004Feedback?: Hex;
+  };
 }
 
 export interface InvokeResult<T = unknown> {

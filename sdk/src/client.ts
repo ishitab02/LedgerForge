@@ -275,6 +275,14 @@ export class LedgerForgeClient {
       skillRegistryRepTxHash: body.skillRegistryRepTxHash,
       erc8004FeedbackTxHash: body.erc8004FeedbackTxHash,
       reputationScore: body.reputationScore,
+      txHashes: {
+        settlement: body.settlementTxHash,
+        pull: body.pullTxHash,
+        createJob: body.createJobTxHash,
+        completeJob: body.completeJobTxHash,
+        skillRegistryRep: body.skillRegistryRepTxHash,
+        erc8004Feedback: body.erc8004FeedbackTxHash,
+      },
     };
   }
 
