@@ -1,0 +1,33 @@
+app = "ledgerforge-indexer"
+primary_region = "sin"
+
+[build]
+
+[env]
+  BAZAAR_API_PORT        = "3002"
+  MANTLE_RPC             = "https://rpc.mantle.xyz"
+  SKILL_REGISTRY_ADDRESS = "0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992"
+  BAZAAR_LISTINGS_ADDRESS = "0xaB5a52C30D769A7Eae1474857A6180E71765CBAF"
+
+[[services]]
+  internal_port = 3002
+  protocol      = "tcp"
+
+  [[services.ports]]
+    port     = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port     = 443
+    handlers = ["tls", "http"]
+
+  [[services.http_checks]]
+    interval       = 30000
+    timeout        = 5000
+    grace_period   = "10s"
+    method         = "GET"
+    path           = "/health"
+
+[[vm]]
+  size   = "shared-cpu-1x"
+  memory = "256mb"
