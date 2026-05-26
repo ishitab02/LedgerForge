@@ -1,19 +1,122 @@
 # LedgerForge
 
-LedgerForge is a Mantle-native marketplace for agent skills.
+**The reputation-native agent service marketplace for Mantle Network.**
 
-## Workspaces
+---
 
-- `contracts`
-- `facilitator`
-- `indexer`
-- `dashboard`
-- `sdk`
-- `agents`
+## What It Does
 
-## Status
+The agent economy has a trust problem. When an autonomous agent wants to hire another agent — for code generation, data analysis, API access, or any on-demand compute — there is no reliable way to know which providers are trustworthy, what they charge, or whether they will deliver. Existing service marketplaces use off-chain ratings that can be gamed, are siloed per platform, and carry no cryptographic weight. Agents have no persistent economic identity and no track record that follows them across deployments.
 
-Project scaffold in progress.
+LedgerForge solves this with three parts: an HTTP-native x402 payment rail that makes AI agents first-class economic participants on Mantle, an on-chain `SkillRegistry` that gives every service provider a permanent ERC-8004 identity, and automatic reputation updates written to the blockchain after every successful job execution. Every payment is escrowed, every settlement is on-chain, and every reputation score is derived directly from provable execution history — not self-reported ratings.
+
+Mantle is the right chain for this. MNT gas costs are low enough to make per-execution reputation writes economically viable (not just per-listing). The Mantle ecosystem natively includes Ethena USDe as a stablecoin — the primary payment token for LedgerForge. And Mantle's ERC-8004 standard provides exactly the agent identity and reputation primitives the system requires. No other L2 has this combination ready today.
+
+---
+
+## How It Works
+
+```
+Consumer Agent                            Mantle Network
+     │                                          │
+     │  1. GET /bazaar  (ranked by reputation)  │
+     │ ──────────────────────────────────▶ Bazaar API
+     │                                    (reads ERC-8004 reputation scores)
+     │ ◀──────────────────────────────────
+     │     [ranked skill listing]
+     │
+     │  2. Request skill endpoint
+     │ ──────────────────────────────────▶ Facilitator
+     │ ◀──────────────────────────────────
+     │     402 Payment Required + challenge
+     │
+     │  3. POST /pay  (EIP-3009 USDe sig)
+     │ ──────────────────────────────────▶ Facilitator
+     │                                     │
+     │                                     │  x402Escrow.lock() ──▶ Mantle
+     │                                     │  (funds locked on-chain)
+     │
+     │  4. Job forwarded to provider
+     │ ──────────────────────────────────▶ Provider Agent
+     │ ◀──────────────────────────────────
+     │     result + proof
+     │
+     │  5. Facilitator settles
+     │                                     │
+     │                                     │  x402Escrow.release() ──▶ Mantle
+     │                                     │  (USDe → provider, fee → facilitator)
+     │                                     │
+     │                                     │  ERC8004.recordExecution() ──▶ Mantle
+     │                                     │  (reputation++ for provider)
+     │
+     │  6. Settlement receipt
+     │ ◀──────────────────────────────────
+```
+
+---
+
+## Architecture
+
+### Smart Contracts (Mantle Mainnet)
+
+| Contract | Address | Role |
+|---|---|---|
+| `SkillRegistry` | [`0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992`](https://mantlescan.xyz/address/0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992) | Registers skills as ERC-8004 identities; stores endpoint URL, accepted tokens, price-per-call |
+| `x402Escrow` | [`0x1d550b555B3a2e124ef611b55965848d6be233a2`](https://mantlescan.xyz/address/0x1d550b555B3a2e124ef611b55965848d6be233a2) | Holds payment in escrow via EIP-3009; released by facilitator after job completion |
+| `BazaarListings` | [`0xaB5a52C30D769A7Eae1474857A6180E71765CBAF`](https://mantlescan.xyz/address/0xaB5a52C30D769A7Eae1474857A6180E71765CBAF) | Stores listing display metadata (name, description, tags, logoURI) |
+| ERC-8004 Identity Registry | [`0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`](https://mantlescan.xyz/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) | Canonical ERC-8004 identity registry on Mantle (v2, verified) |
+| ERC-8004 Reputation Registry | [`0x8004BAa17C55a88189AE136b182e5fdA19dE9b63`](https://mantlescan.xyz/address/0x8004BAa17C55a88189AE136b182e5fdA19dE9b63) | Canonical ERC-8004 reputation registry on Mantle (v2.0.0 ERC-1967 proxy) |
+
+### Facilitator Server
+
+The facilitator is a TypeScript/Express HTTP server that coordinates x402 payments. It validates the signed payment, moves funds through `x402Escrow`, forwards the job to the provider, and releases payment after completion. After settlement, it writes the result to the ERC-8004 Reputation Registry so the provider's on-chain score moves with real usage. The facilitator fee defaults to 20 bps / 0.2%.
+
+The facilitator is intentionally the only party on the ERC-8004 reputation operator allowlist. This avoids requiring smart contract whitelisting and keeps the trust surface minimal.
+
+### The Bazaar
+
+The Bazaar is discovery. The Next.js frontend and API read listings from `BazaarListings` or the indexer DB, then sort by ERC-8004 reputation data. Ranking is read-only, so the sort formula can change without redeploying contracts. Consumers can filter by token, price, and category.
+
+---
+
+## Live Demo
+
+All services are live on Mantle Mainnet. No setup required to observe.
+
+| Service | URL |
+|---|---|
+| **Bazaar Dashboard** | [dashboard-xi-sooty-72.vercel.app](https://dashboard-xi-sooty-72.vercel.app) |
+| **Bazaar API / Indexer** | [ledgerforge-indexer.fly.dev](https://ledgerforge-indexer.fly.dev) |
+| **Facilitator** | [ledgerforge-facilitator.fly.dev](https://ledgerforge-facilitator.fly.dev) |
+| **Spawn skill server** | [ledgerforge-spawn.fly.dev](https://ledgerforge-spawn.fly.dev) |
+| **Byreal skill server** | [ledgerforge-byreal.fly.dev](https://ledgerforge-byreal.fly.dev) |
+| **Mantle data skill server** | [ledgerforge-mantle.fly.dev](https://ledgerforge-mantle.fly.dev) |
+
+### Proven on-chain: autonomous agent run
+
+The LedgerForge Scout agent (`npm run scout`) ran live on Mantle Mainnet, paying for 5 skills sequentially and writing an ENTER_POOL decision with 85% confidence. Every settlement is verifiable on Mantlescan:
+
+| # | Skill | escrowJobId | `completeJob` tx |
+|---|-------|-------------|-----------------|
+| 1 | byreal-top-pools | `11` | [0xe7656e52fe…](https://mantlescan.xyz/tx/0xe7656e52fe69718cee61e126efdad3c27f932762ca1b45817dacedb5bf2f0d33) |
+| 2 | aave-v3-rates | `12` | [0x257289318a…](https://mantlescan.xyz/tx/0x257289318a8825b9e5325eedd64047254e1c408780ba935d92975d4cd7b15b06) |
+| 3 | token-price-feed | `13` | [0x4be1efebab…](https://mantlescan.xyz/tx/0x4be1efebabf15dcb9e9a45684cdae057722e00ef1be3ecdfac9fb9fd5f8d9199) |
+| 4 | mantle-gas-oracle | `14` | [0x985dbd374d…](https://mantlescan.xyz/tx/0x985dbd374d1ae880ac2e4005c44984af140a30078aee604c23eb1bfe93c06740) |
+| 5 | byreal-swap-preview | `15` | [0xd55feeb0f3…](https://mantlescan.xyz/tx/0xd55feeb0f390d88353a42af480ab0c6e68f5d689501f424b6aba7990f8b5c7d1) |
+
+Each row = 5 Mantle txs (pull -> createJob -> completeJob -> SkillRegistry rep -> ERC-8004 feedback). One agent run = **25 on-chain transactions**.
+
+Current stats: **15 skills registered · 44+ jobs settled · ~2.25 USDC total revenue** _(as of 2026-05-29; live numbers at [`/stats`](https://ledgerforge-indexer.fly.dev/stats))_
+
+---
+
+## Quick Start
+
+### Use the live deployment (no setup)
+
+```bash
+# Browse the skill registry
+curl https://ledgerforge-indexer.fly.dev/skills | jq '.skills[] | {skillId, name, endpoint}'
 
 # Check live job settlements
 curl https://ledgerforge-indexer.fly.dev/jobs | jq '.[0]'
