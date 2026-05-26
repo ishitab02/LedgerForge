@@ -79,6 +79,15 @@ The Bazaar is the discovery and ranking layer. The Next.js 15 frontend and its b
 
 ---
 
+## Live Demo
+
+| Service | URL |
+|---|---|
+| **Bazaar Dashboard** | [dashboard-xi-sooty-72.vercel.app](https://dashboard-xi-sooty-72.vercel.app) |
+| **Facilitator** | `http://localhost:3001` (self-host — see AGENTS.md) |
+
+---
+
 ## Quick Start
 
 ```bash
