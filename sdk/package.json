@@ -1,0 +1,22 @@
+{
+  "name": "@ledgerforge/x402-mantle",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the LedgerForge x402 payment rail on Mantle Network",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "peerDependencies": {
+    "viem": "^2.x"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}
