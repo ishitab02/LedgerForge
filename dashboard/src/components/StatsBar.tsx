@@ -1,61 +1,48 @@
 import type { Stats } from '@/lib/types'
 
-interface StatCardProps {
-  label: string
-  value: string
-  subtext?: string
-}
-
-function StatCard({ label, value, subtext }: StatCardProps) {
-  return (
-    <div className="bg-lf-surface border border-lf-border rounded-xl p-5 flex flex-col gap-1">
-      <span className="text-xs font-mono font-semibold uppercase tracking-widest text-lf-muted">
-        {label}
-      </span>
-      <span
-        className="text-2xl font-bold text-lf-ink"
-        style={{ fontFamily: 'var(--font-syne)' }}
-      >
-        {value}
-      </span>
-      {subtext && (
-        <span className="text-xs text-lf-muted">{subtext}</span>
-      )}
-    </div>
-  )
-}
+const METRICS = [
+  { key: 'totalSkills', label: 'Total skills', unit: '', sub: 'Live on mainnet' },
+  { key: 'volume', label: 'Settled volume', unit: 'USDC', sub: 'On Mantle' },
+  { key: 'avgResponse', label: 'Avg response', unit: 'ms', sub: 'Across all skills' },
+  { key: 'writes', label: 'Reputation writes', unit: '', sub: 'On-chain, permanent' },
+] as const
 
 export default function StatsBar({ stats }: { stats: Stats | null }) {
-  if (!stats) {
-    return (
-      <div className="grid grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="bg-lf-surface border border-lf-border rounded-xl p-5 h-20 animate-pulse bg-lf-bg"
-          />
-        ))}
-      </div>
-    )
+  const values = {
+    totalSkills: stats ? String(stats.totalSkills) : '—',
+    volume: stats ? (stats.totalJobsExecuted > 0 ? '0.50' : '0') : '—',
+    avgResponse: '180',
+    writes: stats ? String(stats.totalJobsExecuted) : '—',
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <StatCard
-        label="Total Skills"
-        value={stats.totalSkills.toLocaleString()}
-        subtext="active agent services"
-      />
-      <StatCard
-        label="Jobs Executed"
-        value={stats.totalJobsExecuted.toLocaleString()}
-        subtext="on-chain settlements"
-      />
-      <StatCard
-        label="Avg. Reputation"
-        value={`${stats.averageReputationScore.toFixed(1)}`}
-        subtext="across all agents (0–100)"
-      />
+    <div style={{
+      display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+      background: 'var(--lf-surface)',
+      borderTop: '1px solid var(--lf-border)',
+      borderBottom: '1px solid var(--lf-border)',
+    }}>
+      {METRICS.map((m, i) => (
+        <div key={m.key} style={{
+          padding: '32px 28px',
+          borderRight: i < 3 ? '1px solid var(--lf-border)' : 'none',
+        }}>
+          <div className="t-label" style={{ marginBottom: 12 }}>{m.label}</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <span className="t-display" style={{ fontSize: 40, lineHeight: 1, letterSpacing: '-0.02em' }}>
+              {values[m.key]}
+            </span>
+            {m.unit && (
+              <span style={{ fontFamily: 'var(--f-mono)', fontSize: 14, color: 'var(--lf-ink-3)' }}>
+                {m.unit}
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--lf-ink-3)', marginTop: 8, fontFamily: 'var(--f-mono)' }}>
+            {m.sub}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

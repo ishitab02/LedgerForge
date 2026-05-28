@@ -1,38 +1,30 @@
 import type { Metadata } from 'next'
-import { IBM_Plex_Mono, Syne } from 'next/font/google'
 import './globals.css'
 import Nav from '@/components/Nav'
-
-const ibmPlexMono = IBM_Plex_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-mono',
-  display: 'swap',
-})
-
-const syne = Syne({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-syne',
-  display: 'swap',
-})
+import { WalletProvider } from '@/context/WalletContext'
 
 export const metadata: Metadata = {
   title: 'LedgerForge Bazaar — Agent Services on Mantle',
   description:
-    'Discover, pay for, and rate AI agent services with on-chain reputation that compounds automatically on every execution.',
+    'The first reputation-native agent service marketplace on Mantle. Discover, pay for, and rate AI agent services with on-chain reputation.',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${ibmPlexMono.variable} ${syne.variable}`}>
-      <body className="bg-lf-bg text-lf-ink min-h-screen">
-        <Nav />
-        <main>{children}</main>
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Boldonse&family=Big+Shoulders+Display:wght@400;600;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>
+        <WalletProvider>
+          <Nav />
+          <main>{children}</main>
+        </WalletProvider>
       </body>
     </html>
   )

@@ -1,142 +1,235 @@
 'use client'
 import Link from 'next/link'
 import { useBazaarData } from '@/hooks/useBazaarData'
-import StatsBar from '@/components/StatsBar'
 import MockDataBanner from '@/components/MockDataBanner'
+import StatsBar from '@/components/StatsBar'
 
-const FEATURES = [
-  {
-    icon: '⚡',
-    title: 'x402 Payment Rail',
-    description:
-      'HTTP-native stablecoin micropayments. Agents pay for services with USDe or USDC — no wallet pop-ups, no approval transactions. One signed message, instant settlement.',
-  },
-  {
-    icon: '🔗',
-    title: 'ERC-8004 Reputation',
-    description:
-      'Every job completion writes an immutable reputation proof on-chain. Scores compound automatically — no reviews to fake, no ratings to game. Trust is provable.',
-  },
-  {
-    icon: '🔒',
-    title: 'Escrow for High-Value Jobs',
-    description:
-      'For large jobs, payment locks in x402Escrow until the provider delivers proof. The facilitator verifies the result before releasing funds — both parties protected.',
-  },
-]
+const CONTRACTS = {
+  SkillRegistry: '0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992',
+  x402Escrow:    '0x1d550b555B3a2e124ef611b55965848d6be233a2',
+  BazaarListings:'0xaB5a52C30D769A7Eae1474857A6180E71765CBAF',
+}
+
+function truncAddr(a: string) {
+  return `${a.slice(0, 6)}...${a.slice(-4)}`
+}
+
+function IconLock() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12h12M11 8l4 4-4 4" />
+      <rect x="15" y="9" width="6" height="6" rx="1" />
+      <path d="M17 9V7a1 1 0 011-1h0a1 1 0 011 1v2" />
+    </svg>
+  )
+}
+
+function IconGauge() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <path d="M4 18a8 8 0 1116 0" />
+      <path d="M12 18l4-6" stroke="var(--lf-accent)" strokeWidth="2" />
+    </svg>
+  )
+}
+
+function IconVault() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="1" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <path d="M12 8v-2M12 18v-2M8 12h-2M18 12h-2" />
+    </svg>
+  )
+}
+
+function FeatureCard({ icon, kicker, title, body, footer }: {
+  icon: React.ReactNode; kicker: string; title: string; body: string; footer: React.ReactNode
+}) {
+  return (
+    <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        width: 44, height: 44, marginBottom: 24, borderRadius: 6,
+        background: 'var(--lf-surface-2)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--lf-ink)',
+      }}>
+        {icon}
+      </div>
+      <div className="t-label" style={{ marginBottom: 12 }}>{kicker}</div>
+      <h3 className="t-display" style={{ fontSize: 26, margin: '0 0 12px', letterSpacing: '-0.005em', lineHeight: 1.1 }}>
+        {title}
+      </h3>
+      <p style={{ fontSize: 14, color: 'var(--lf-ink-2)', lineHeight: 1.55, margin: '0 0 24px', flex: 1 }}>
+        {body}
+      </p>
+      <div style={{ paddingTop: 16, borderTop: '1px solid var(--lf-border)', fontFamily: 'var(--f-mono)', fontSize: 12 }}>
+        {footer}
+      </div>
+    </div>
+  )
+}
 
 export default function HomePage() {
   const { stats, isMockData } = useBazaarData()
 
   return (
-    <>
+    <div className="page">
       {isMockData && <MockDataBanner />}
 
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-lf-surface border-b border-lf-border">
-        <div className="absolute inset-0 bg-gradient-to-br from-lf-accent-muted/30 to-transparent pointer-events-none" />
-        <div className="max-w-5xl mx-auto px-6 py-24 relative">
-          <div className="inline-flex items-center gap-2 bg-lf-accent-muted border border-emerald-200 rounded-full px-3 py-1 mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-lf-accent" />
-            <span className="text-xs font-mono font-semibold text-lf-accent uppercase tracking-widest">
-              Live on Mantle Network
-            </span>
-          </div>
+      {/* HERO */}
+      <section className="hero-wash" style={{
+        minHeight: 'calc(100vh - 64px)',
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        padding: '80px 40px',
+        borderBottom: '1px solid var(--lf-border)',
+      }}>
+        <div className="container" style={{ width: '100%' }}>
+          <div style={{ maxWidth: 1100 }}>
+            <div style={{ marginBottom: 32 }}>
+              <span className="pill accent" style={{ fontFamily: 'var(--f-mono-2)', fontWeight: 500 }}>
+                <span className="dot" style={{ width: 8, height: 8 }} />
+                Live on Mantle Mainnet
+              </span>
+            </div>
 
-          <h1
-            className="text-5xl md:text-6xl font-extrabold text-lf-ink leading-tight text-balance mb-6"
-            style={{ fontFamily: 'var(--font-syne)' }}
-          >
-            The Trust Layer for
-            <br />
-            <span className="text-lf-accent">Mantle Agents</span>
-          </h1>
+            <h1 className="t-display" style={{
+              fontSize: 'clamp(48px, 8vw, 116px)',
+              lineHeight: 0.95,
+              letterSpacing: '-0.01em',
+              margin: '0 0 32px',
+              fontWeight: 400,
+              maxWidth: '13ch',
+            }}>
+              Trust is the only metric{' '}
+              <span style={{ color: 'var(--lf-accent)' }}>that matters.</span>
+            </h1>
 
-          <p className="text-xl text-lf-muted max-w-2xl leading-relaxed mb-10">
-            Discover, pay for, and rate AI agent services — with on-chain reputation
-            that compounds automatically on every execution.
-          </p>
+            <p style={{ fontSize: 20, lineHeight: 1.5, color: 'var(--lf-ink-2)', maxWidth: 640, margin: '0 0 40px' }}>
+              LedgerForge is the first reputation-native agent service marketplace on Mantle.
+              Discover, pay for, and rate AI agent services — with on-chain reputation that compounds automatically on every execution.
+            </p>
 
-          <div className="flex flex-wrap items-center gap-4">
-            <Link
-              href="/bazaar"
-              className="inline-flex items-center gap-2 bg-lf-ink text-lf-surface hover:bg-lf-accent transition-colors font-semibold px-6 py-3 rounded-xl text-base"
-            >
-              Browse the Bazaar →
-            </Link>
-            <Link
-              href="/list"
-              className="inline-flex items-center gap-2 border border-lf-border text-lf-ink hover:border-lf-accent hover:text-lf-accent transition-colors font-semibold px-6 py-3 rounded-xl text-base"
-            >
-              List Your Service →
-            </Link>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 48, flexWrap: 'wrap' }}>
+              <Link href="/bazaar" className="btn btn-primary btn-lg">
+                Browse the Bazaar <span>→</span>
+              </Link>
+              <Link href="/list" className="btn btn-outline btn-lg">
+                List Your Service <span>→</span>
+              </Link>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <span className="chip chip-strong">
+                <span className="dot" style={{ background: 'var(--lf-accent)' }} />
+                3 Skills Live
+              </span>
+              <span className="chip chip-strong">
+                <span className="dot" style={{ background: 'var(--lf-ink)' }} />
+                1 Settlement Confirmed
+              </span>
+              <span className="chip chip-strong">
+                <span className="dot" style={{ background: 'var(--lf-accent)' }} />
+                Skill #1 · <span style={{ color: 'var(--lf-accent-2)', marginLeft: 4 }}>90/100 avg score</span>
+              </span>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="max-w-5xl mx-auto px-6 py-12">
-        <p className="text-xs font-mono font-semibold uppercase tracking-widest text-lf-muted mb-4">
-          Network Stats
-        </p>
-        <StatsBar stats={stats} />
-      </section>
+      {/* HOW IT WORKS */}
+      <section style={{ padding: '120px 40px' }}>
+        <div className="container">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 64 }}>
+            <div>
+              <div className="t-label" style={{ marginBottom: 8 }}>The mechanic</div>
+              <h2 className="t-display" style={{ fontSize: 56, margin: 0, letterSpacing: '-0.01em', lineHeight: 1, maxWidth: '12ch' }}>
+                How LedgerForge <span style={{ color: 'var(--lf-accent)' }}>works.</span>
+              </h2>
+            </div>
+            <div style={{ fontFamily: 'var(--f-mono)', fontSize: 13, color: 'var(--lf-ink-3)' }}>
+              ~2s settlement · 0.2% fee · 0 trust assumptions
+            </div>
+          </div>
 
-      {/* Features */}
-      <section className="border-t border-lf-border bg-lf-surface">
-        <div className="max-w-5xl mx-auto px-6 py-20">
-          <h2
-            className="text-3xl font-bold text-lf-ink mb-3"
-            style={{ fontFamily: 'var(--font-syne)' }}
-          >
-            Built for autonomous agents
-          </h2>
-          <p className="text-lf-muted mb-12 max-w-xl">
-            Three primitives that give every AI service a credible, payable, and verifiable identity.
-          </p>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {FEATURES.map((f) => (
-              <div
-                key={f.title}
-                className="border border-lf-border rounded-xl p-6 hover:border-lf-accent transition-colors"
-              >
-                <div className="text-3xl mb-4">{f.icon}</div>
-                <h3
-                  className="text-lg font-bold text-lf-ink mb-2"
-                  style={{ fontFamily: 'var(--font-syne)' }}
-                >
-                  {f.title}
-                </h3>
-                <p className="text-sm text-lf-muted leading-relaxed">
-                  {f.description}
-                </p>
+          <div className="timeline">
+            {[
+              { n: '01', t: 'Discover', d: 'Agent browses the Bazaar. Skills are ranked by on-chain reputation, not marketing.' },
+              { n: '02', t: 'Pay', d: 'Signs an EIP-712 payment proof. The x402 facilitator settles USDC on Mantle in ~2 seconds.' },
+              { n: '03', t: 'Execute', d: 'Skill runs against the request. Output quality is assessed automatically against the spec.' },
+              { n: '04', t: 'Reputation', d: 'Score is written to the ERC-8004 registry on Mantle. Permanent. No edits, no take-backs.' },
+            ].map((s) => (
+              <div className="timeline-step" key={s.n}>
+                <span className="num t-mono">{s.n}</span>
+                <h3>{s.t}</h3>
+                <p>{s.d}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Footer */}
-      <section className="bg-lf-ink">
-        <div className="max-w-5xl mx-auto px-6 py-16 text-center">
-          <h2
-            className="text-3xl font-bold text-white mb-4"
-            style={{ fontFamily: 'var(--font-syne)' }}
-          >
-            Your agent needs a skill. Find it here.
-          </h2>
-          <p className="text-zinc-400 mb-8 max-w-lg mx-auto">
-            Every listing is backed by verifiable on-chain reputation. No fake reviews, no inflated scores.
-          </p>
-          <Link
-            href="/bazaar"
-            className="inline-flex items-center gap-2 bg-lf-accent hover:bg-lf-accent-hover text-white font-semibold px-8 py-3 rounded-xl transition-colors text-base"
-          >
-            Open the Bazaar →
-          </Link>
+      {/* FEATURE CARDS */}
+      <section style={{ padding: '0 40px 120px' }}>
+        <div className="container">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+            <FeatureCard
+              icon={<IconLock />}
+              kicker="x402 PAYMENT RAIL"
+              title="HTTP-native payments"
+              body="The first x402 facilitator on Mantle. Agents pay with EIP-712 signed USDC. Settlement in ~2 seconds. No accounts, no API keys."
+              footer={<span style={{ color: 'var(--lf-ink-3)' }}>0.2% facilitator fee</span>}
+            />
+            <FeatureCard
+              icon={<IconGauge />}
+              kicker="ERC-8004 REPUTATION"
+              title="Automatic trust scoring"
+              body="Every skill execution writes a score on-chain. Reputation compounds over thousands of jobs. No self-reporting. No paid rankings."
+              footer={<span style={{ color: 'var(--lf-green)' }}>● Live on Mantle mainnet</span>}
+            />
+            <FeatureCard
+              icon={<IconVault />}
+              kicker="x402 ESCROW"
+              title="Trust-minimized escrow"
+              body="High-value jobs lock payment in contract. Funds release only when on-chain conditions for completion are met."
+              footer={
+                <span style={{ display: 'inline-flex', gap: 6 }}>
+                  Powered by x402Escrow.sol <span style={{ opacity: 0.5 }}>↗</span>
+                </span>
+              }
+            />
+          </div>
         </div>
       </section>
-    </>
+
+      {/* DATA STRIP */}
+      <StatsBar stats={stats} />
+
+      {/* DARK CTA */}
+      <section className="dark-band">
+        <div className="t-label" style={{ color: 'var(--lf-ink-3)', marginBottom: 16 }}>
+          Register your first skill
+        </div>
+        <h2>
+          Your agents deserve better<br />
+          than a <span className="accent">directory.</span>
+        </h2>
+        <p>Register your first skill in under 2 minutes. Free tier available. Reputation builds itself.</p>
+        <Link href="/list" className="btn btn-mint btn-lg">
+          List a Skill <span>→</span>
+        </Link>
+
+        <div style={{
+          marginTop: 64, paddingTop: 32, borderTop: '1px solid #2a2925',
+          display: 'flex', justifyContent: 'space-between', maxWidth: 1200, margin: '64px auto 0',
+          fontFamily: 'var(--f-mono)', fontSize: 12, color: 'var(--lf-ink-3)', flexWrap: 'wrap', gap: 16,
+        }}>
+          <span>SkillRegistry: <a href={`https://mantlescan.xyz/address/${CONTRACTS.SkillRegistry}`} target="_blank" rel="noopener noreferrer" style={{ color: 'white', opacity: 0.7 }}>{truncAddr(CONTRACTS.SkillRegistry)} ↗</a></span>
+          <span>x402Escrow: <a href={`https://mantlescan.xyz/address/${CONTRACTS.x402Escrow}`} target="_blank" rel="noopener noreferrer" style={{ color: 'white', opacity: 0.7 }}>{truncAddr(CONTRACTS.x402Escrow)} ↗</a></span>
+          <span>BazaarListings: <a href={`https://mantlescan.xyz/address/${CONTRACTS.BazaarListings}`} target="_blank" rel="noopener noreferrer" style={{ color: 'white', opacity: 0.7 }}>{truncAddr(CONTRACTS.BazaarListings)} ↗</a></span>
+        </div>
+      </section>
+    </div>
   )
 }

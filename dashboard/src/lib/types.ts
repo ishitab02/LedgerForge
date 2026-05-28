@@ -8,15 +8,16 @@ export interface Skill {
   endpoint: string
   metadataURI: string
   owner: string
-  pricePerCall: string
+  price: number
   acceptedToken: AcceptedToken
-  reputationScore: number
-  jobCount: number
+  score: number
+  jobs: number
   tier: Tier
   agentId: string
   description: string
   tags: string[]
-  createdAt: string
+  registered: string
+  isReal: boolean
   reputationHistory: ReputationPoint[]
 }
 
@@ -36,11 +37,14 @@ export interface Job {
   id: string
   skillId: string
   skillName: string
+  skillTier: Tier
   consumer: string
-  reputationScore: number
+  score: number
   settlementTx: string
+  amount: string
   timestamp: string
+  confirmed?: boolean
 }
 
-export type SortKey = 'reputation' | 'jobs' | 'newest'
+export type SortKey = 'reputation' | 'jobs' | 'newest' | 'price-low'
 export type FilterTier = 'ALL' | Tier

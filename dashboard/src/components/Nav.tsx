@@ -1,42 +1,68 @@
+'use client'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useWallet } from '@/context/WalletContext'
+
+function truncAddr(a: string) {
+  return `${a.slice(0, 6)}…${a.slice(-4)}`
+}
 
 export default function Nav() {
+  const path = usePathname()
+  const { account, connecting, connect, disconnect } = useWallet()
+
   return (
-    <header className="sticky top-0 z-50 bg-lf-surface/95 backdrop-blur border-b border-lf-border">
-      <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <span
-            className="text-lf-accent font-mono font-bold text-lg tracking-tight"
-            style={{ fontFamily: 'var(--font-mono)' }}
+    <header className="nav">
+      <Link href="/" className="nav-brand">
+        <span className="wm">LedgerForge</span>
+        <span className="sub">on Mantle</span>
+      </Link>
+
+      <nav className="nav-links">
+        {[
+          { href: '/bazaar', label: 'The Bazaar' },
+          { href: '/jobs', label: 'Job Feed' },
+          { href: '/list', label: 'List a Skill' },
+        ].map(({ href, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`nav-link${path.startsWith(href) ? ' active' : ''}`}
           >
-            LedgerForge
-          </span>
-          <span className="text-xs font-mono text-lf-muted bg-lf-accent-muted text-lf-accent px-1.5 py-0.5 rounded">
-            BAZAAR
-          </span>
-        </Link>
+            {label}
+          </Link>
+        ))}
+      </nav>
 
-        <nav className="hidden md:flex items-center gap-6">
-          {[
-            { href: '/bazaar', label: 'Browse' },
-            { href: '/jobs', label: 'Jobs' },
-            { href: '/list', label: 'List a Service' },
-          ].map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="text-sm text-lf-muted hover:text-lf-ink transition-colors font-medium"
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
-
-        <Link
-          href="/bazaar"
-          className="text-sm font-semibold text-lf-surface bg-lf-ink hover:bg-lf-accent transition-colors px-4 py-2 rounded-lg"
-        >
-          Browse Bazaar
+      <div className="nav-right">
+        {account ? (
+          <button
+            onClick={disconnect}
+            title="Click to disconnect"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              height: 34, padding: '0 12px',
+              background: 'var(--lf-accent-bg)', color: 'var(--lf-accent-2)',
+              border: '1px solid rgba(15,190,127,0.3)', borderRadius: 6,
+              fontFamily: 'var(--f-mono)', fontSize: 12, fontWeight: 500,
+              cursor: 'pointer', transition: 'all .1s',
+            }}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--lf-accent)', flexShrink: 0 }} />
+            {truncAddr(account)}
+          </button>
+        ) : (
+          <button
+            onClick={connect}
+            disabled={connecting}
+            className="btn btn-primary"
+            style={{ height: 34, fontSize: 13, opacity: connecting ? 0.7 : 1 }}
+          >
+            {connecting ? 'Connecting…' : 'Connect Wallet'}
+          </button>
+        )}
+        <Link href="/bazaar" className="btn btn-outline" style={{ height: 34, fontSize: 13 }}>
+          Browse →
         </Link>
       </div>
     </header>

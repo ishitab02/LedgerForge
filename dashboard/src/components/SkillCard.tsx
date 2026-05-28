@@ -1,73 +1,76 @@
+'use client'
 import Link from 'next/link'
 import type { Skill } from '@/lib/types'
 import TierBadge from './TierBadge'
 import ReputationGauge from './ReputationGauge'
+import AddressChip from './AddressChip'
 
-function truncateAddress(address: string): string {
-  if (address.length < 10) return address
-  return `${address.slice(0, 6)}…${address.slice(-4)}`
+interface SkillCardProps {
+  skill: Skill
+  onUse?: (skill: Skill) => void
 }
 
-export default function SkillCard({ skill }: { skill: Skill }) {
+export default function SkillCard({ skill, onUse }: SkillCardProps) {
+  const isEmpty = skill.score === 0 && skill.jobs === 0
+
   return (
-    <div className="bg-lf-surface border border-lf-border rounded-xl p-5 flex flex-col gap-4 hover:border-lf-accent hover:shadow-sm transition-all duration-200 animate-fade-in">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <TierBadge tier={skill.tier} />
-          </div>
-          <h3
-            className="font-semibold text-lf-ink text-base leading-tight truncate"
-            style={{ fontFamily: 'var(--font-syne)' }}
-          >
-            {skill.name}
-          </h3>
-          <p
-            className="text-xs text-lf-muted font-mono mt-0.5"
-          >
-            v{skill.version}
-          </p>
-        </div>
-        <ReputationGauge score={skill.reputationScore} size={56} />
-      </div>
-
-      <p className="text-sm text-lf-muted leading-relaxed line-clamp-2">
-        {skill.description}
-      </p>
-
-      <div className="flex items-center justify-between text-xs font-mono text-lf-muted border-t border-lf-border pt-3">
-        <div className="flex items-center gap-3">
-          <span title="Jobs executed">
-            <span className="text-lf-ink font-semibold">
-              {skill.jobCount.toLocaleString()}
-            </span>{' '}
-            jobs
-          </span>
-          <span className="text-lf-border">|</span>
-          <span title="Price per call">
-            {skill.tier === 'FREE' ? (
-              <span className="text-lf-accent font-semibold">Free</span>
-            ) : (
-              <>
-                <span className="text-lf-ink font-semibold">
-                  ${skill.pricePerCall}
-                </span>{' '}
-                {skill.acceptedToken}
-              </>
-            )}
-          </span>
-        </div>
-        <span title={skill.owner} className="truncate max-w-[100px]">
-          {truncateAddress(skill.owner)}
-        </span>
-      </div>
-
-      <Link
-        href={`/skill/${skill.id}`}
-        className="block text-center text-sm font-semibold text-lf-accent border border-lf-accent rounded-lg py-2 hover:bg-lf-accent hover:text-white transition-colors"
+    <Link href={`/skill/${skill.id}`} style={{ display: 'block', textDecoration: 'none' }}>
+      <div
+        className="card card-hover card-pad-sm"
+        style={{ display: 'flex', flexDirection: 'column', opacity: isEmpty ? 0.92 : 1, height: '100%' }}
       >
-        Use This Skill →
-      </Link>
-    </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <TierBadge tier={skill.tier} />
+          <ReputationGauge score={isEmpty ? null : skill.score} size={56} strokeWidth={5} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <div className="t-display" style={{ fontSize: 19, lineHeight: 1.25, marginBottom: 4 }}>
+            {skill.name}
+          </div>
+          <div style={{ fontFamily: 'var(--f-mono-2)', fontSize: 11, color: 'var(--lf-ink-3)', letterSpacing: '0.05em' }}>
+            {skill.version}
+          </div>
+        </div>
+
+        <p style={{
+          fontSize: 13, color: 'var(--lf-ink-2)', margin: '0 0 20px', lineHeight: 1.5,
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        }}>
+          {skill.description}
+        </p>
+
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: '6px 14px',
+          fontFamily: 'var(--f-mono)', fontSize: 12, color: 'var(--lf-ink-2)', marginBottom: 16,
+        }}>
+          <span>{skill.jobs} jobs</span>
+          <span style={{ color: 'var(--lf-ink-3)' }}>·</span>
+          <span onClick={(e) => e.preventDefault()}>
+            <AddressChip address={skill.owner} />
+          </span>
+          <span style={{ color: 'var(--lf-ink-3)' }}>·</span>
+          <span>{skill.price === 0 ? 'free' : `${skill.price.toFixed(2)} USDC`}</span>
+        </div>
+
+        {isEmpty && (
+          <div style={{ fontStyle: 'italic', fontSize: 12, color: 'var(--lf-amber)', marginBottom: 12 }}>
+            New skill — no reputation yet
+          </div>
+        )}
+
+        <div style={{ borderTop: '1px solid var(--lf-border)', paddingTop: 14, marginTop: 'auto' }}>
+          <button
+            onClick={(e) => { e.preventDefault(); onUse?.(skill) }}
+            style={{
+              color: 'var(--lf-accent)', fontSize: 13, fontWeight: 500,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            Use This Skill <span style={{ fontSize: 14 }}>→</span>
+          </button>
+        </div>
+      </div>
+    </Link>
   )
 }

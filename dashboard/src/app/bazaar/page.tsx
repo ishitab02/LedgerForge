@@ -3,162 +3,157 @@ import { useState, useMemo } from 'react'
 import { useBazaarData } from '@/hooks/useBazaarData'
 import SkillCard from '@/components/SkillCard'
 import MockDataBanner from '@/components/MockDataBanner'
-import StatsBar from '@/components/StatsBar'
-import type { FilterTier, SortKey } from '@/lib/types'
+import PaymentModal from '@/components/PaymentModal'
+import type { FilterTier, SortKey, Skill } from '@/lib/types'
 
 const TIERS: FilterTier[] = ['ALL', 'PRO', 'BASIC', 'FREE']
 
 export default function BazaarPage() {
-  const { skills, stats, isMockData, loading } = useBazaarData()
-  const [search, setSearch] = useState('')
-  const [filterTier, setFilterTier] = useState<FilterTier>('ALL')
+  const { skills, isMockData, loading } = useBazaarData()
+  const [query, setQuery] = useState('')
+  const [tier, setTier] = useState<FilterTier>('ALL')
   const [minScore, setMinScore] = useState(0)
-  const [sortKey, setSortKey] = useState<SortKey>('reputation')
+  const [sort, setSort] = useState<SortKey>('reputation')
+  const [paySkill, setPaySkill] = useState<Skill | null>(null)
 
   const filtered = useMemo(() => {
-    let result = skills
-    if (search.trim()) {
-      const q = search.toLowerCase()
-      result = result.filter(
-        (s) =>
-          s.name.toLowerCase().includes(q) ||
-          s.description.toLowerCase().includes(q) ||
-          s.tags.some((t) => t.toLowerCase().includes(q))
-      )
+    let list = skills.slice()
+    if (query) {
+      const q = query.toLowerCase()
+      list = list.filter((s) => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
     }
-    if (filterTier !== 'ALL') {
-      result = result.filter((s) => s.tier === filterTier)
-    }
-    result = result.filter((s) => s.reputationScore >= minScore)
+    if (tier !== 'ALL') list = list.filter((s) => s.tier === tier)
+    list = list.filter((s) => s.score >= minScore)
+    if (sort === 'reputation') list.sort((a, b) => b.score - a.score)
+    else if (sort === 'jobs') list.sort((a, b) => b.jobs - a.jobs)
+    else if (sort === 'price-low') list.sort((a, b) => a.price - b.price)
+    else list.sort((a, b) => parseInt(b.id) - parseInt(a.id))
+    return list
+  }, [skills, query, tier, minScore, sort])
 
-    return [...result].sort((a, b) => {
-      if (sortKey === 'reputation') return b.reputationScore - a.reputationScore
-      if (sortKey === 'jobs') return b.jobCount - a.jobCount
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    })
-  }, [skills, search, filterTier, minScore, sortKey])
+  const avgScore = skills.length
+    ? Math.round(skills.reduce((a, s) => a + s.score, 0) / skills.length)
+    : 0
 
   return (
-    <>
+    <div className="page">
       {isMockData && <MockDataBanner />}
+      {paySkill && <PaymentModal skill={paySkill} onClose={() => setPaySkill(null)} />}
 
-      <div className="max-w-7xl mx-auto px-6 py-10">
-        {/* Header */}
-        <div className="mb-8">
-          <h1
-            className="text-4xl font-extrabold text-lf-ink mb-2"
-            style={{ fontFamily: 'var(--font-syne)' }}
-          >
-            Agent Bazaar
-          </h1>
-          <p className="text-lf-muted">
-            Ranked by verifiable on-chain reputation. Updated every execution.
-          </p>
+      <div className="container">
+        <div className="page-header">
+          <div>
+            <div className="t-label" style={{ marginBottom: 8 }}>Discovery</div>
+            <h1>The Bazaar</h1>
+          </div>
+          <div style={{ fontFamily: 'var(--f-mono)', fontSize: 13, color: 'var(--lf-ink-2)', textAlign: 'right' }}>
+            {skills.length} skills · avg score{' '}
+            <span style={{ color: 'var(--lf-ink)' }}>{avgScore}/100</span>{' '}
+            · last job 4m ago
+          </div>
         </div>
 
-        {/* Stats */}
-        <div className="mb-10">
-          <StatsBar stats={stats} />
-        </div>
+        {/* FILTER BAR */}
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 280px', position: 'relative' }}>
+              <svg
+                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--lf-ink-3)' }}
+              >
+                <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+              </svg>
+              <input
+                className="input mono"
+                placeholder="Search skills by name or capability..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                style={{ paddingLeft: 38, background: 'var(--lf-surface-2)' }}
+              />
+            </div>
 
-        {/* Search + Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lf-muted text-sm">
-              ⌕
-            </span>
-            <input
-              type="search"
-              placeholder="Search skills, tags, descriptions…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-4 py-2.5 bg-lf-surface border border-lf-border rounded-xl text-sm focus:outline-none focus:border-lf-accent transition-colors font-mono"
-            />
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '0 14px', height: 42, background: 'var(--lf-surface-2)',
+              border: '1px solid var(--lf-border)', borderRadius: 6, minWidth: 240,
+            }}>
+              <span className="t-label" style={{ margin: 0, fontSize: 10 }}>Min score</span>
+              <input
+                type="range" min="0" max="100" value={minScore}
+                onChange={(e) => setMinScore(Number(e.target.value))}
+                style={{ flex: 1, accentColor: 'var(--lf-accent)' }}
+              />
+              <span style={{ fontFamily: 'var(--f-mono)', fontSize: 13, color: 'var(--lf-ink)', minWidth: 28, textAlign: 'right' }}>
+                {minScore}
+              </span>
+            </div>
+
+            <select
+              className="input mono"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              style={{ width: 220, background: 'var(--lf-surface-2)', cursor: 'pointer' }}
+            >
+              <option value="reputation">Sort: By Reputation</option>
+              <option value="jobs">Sort: Most Jobs</option>
+              <option value="price-low">Sort: Price Low → High</option>
+              <option value="newest">Sort: Newest</option>
+            </select>
           </div>
 
-          {/* Sort */}
-          <select
-            value={sortKey}
-            onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="bg-lf-surface border border-lf-border rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-lf-accent cursor-pointer"
-          >
-            <option value="reputation">Sort: Reputation</option>
-            <option value="jobs">Sort: Most Jobs</option>
-            <option value="newest">Sort: Newest</option>
-          </select>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 mb-8">
-          {/* Tier filters */}
-          <div className="flex items-center gap-2">
-            {TIERS.map((tier) => (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {TIERS.map((t) => (
               <button
-                key={tier}
-                onClick={() => setFilterTier(tier)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-colors ${
-                  filterTier === tier
-                    ? 'bg-lf-ink text-white'
-                    : 'bg-lf-surface border border-lf-border text-lf-muted hover:border-lf-ink hover:text-lf-ink'
-                }`}
+                key={t}
+                className={`pill ${tier === t ? 'active' : ''}`}
+                onClick={() => setTier(t)}
               >
-                {tier}
+                {t}
+                <span style={{ marginLeft: 8, opacity: 0.6 }}>
+                  {t === 'ALL' ? skills.length : skills.filter((s) => s.tier === t).length}
+                </span>
               </button>
             ))}
-          </div>
-
-          <div className="flex items-center gap-2 ml-2">
-            <span className="text-xs font-mono text-lf-muted whitespace-nowrap">
-              Min score: <span className="text-lf-ink font-semibold">{minScore}</span>
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={minScore}
-              onChange={(e) => setMinScore(Number(e.target.value))}
-              className="w-28"
-            />
+            <div style={{ flex: 1 }} />
+            <div style={{ fontFamily: 'var(--f-mono)', fontSize: 12, color: 'var(--lf-ink-3)' }}>
+              Showing {filtered.length} of {skills.length}
+            </div>
           </div>
         </div>
 
-        {/* Grid */}
+        {/* GRID */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, paddingBottom: 80 }}>
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                className="bg-lf-surface border border-lf-border rounded-xl p-5 h-56 animate-pulse"
-              />
+              <div key={i} className="card" style={{ height: 280, opacity: 0.4 }} />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-24">
-            <p
-              className="text-4xl font-bold text-lf-border mb-3"
-              style={{ fontFamily: 'var(--font-syne)' }}
+          <div style={{
+            textAlign: 'center', padding: '96px 20px',
+            border: '1px dashed var(--lf-border)', borderRadius: 8,
+          }}>
+            <div className="t-display" style={{ fontSize: 22, marginBottom: 8 }}>
+              No skills match your filters
+            </div>
+            <p style={{ color: 'var(--lf-ink-3)', fontSize: 14, marginBottom: 20 }}>
+              Try widening the score range or selecting a different tier.
+            </p>
+            <button
+              onClick={() => { setQuery(''); setTier('ALL'); setMinScore(0) }}
+              style={{ color: 'var(--lf-accent)', fontSize: 14, fontWeight: 500 }}
             >
-              No skills found
-            </p>
-            <p className="text-lf-muted text-sm">
-              {search || filterTier !== 'ALL' || minScore > 0
-                ? 'Try clearing your filters.'
-                : 'Be the first to list a service.'}
-            </p>
+              Clear filters →
+            </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map((skill) => (
-              <SkillCard key={skill.id} skill={skill} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, paddingBottom: 80 }}>
+            {filtered.map((s) => (
+              <SkillCard key={s.id} skill={s} onUse={() => setPaySkill(s)} />
             ))}
           </div>
         )}
-
-        <p className="text-xs font-mono text-lf-muted mt-8 text-right">
-          {filtered.length} skill{filtered.length !== 1 ? 's' : ''} shown
-          {isMockData && ' (demo data)'}
-        </p>
       </div>
-    </>
+    </div>
   )
 }

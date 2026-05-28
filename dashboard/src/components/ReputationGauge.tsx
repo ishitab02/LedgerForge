@@ -1,61 +1,78 @@
+'use client'
+import { useState, useEffect } from 'react'
+
+function scoreColor(s: number | null): string {
+  if (s == null) return 'var(--lf-border)'
+  if (s >= 80) return 'var(--lf-green)'
+  if (s >= 50) return 'var(--lf-amber)'
+  return 'var(--lf-red)'
+}
+
 interface ReputationGaugeProps {
-  score: number
+  score: number | null
   size?: number
+  strokeWidth?: number
+  animate?: boolean
 }
 
 export default function ReputationGauge({
   score,
-  size = 56,
+  size = 64,
+  strokeWidth = 6,
+  animate = true,
 }: ReputationGaugeProps) {
-  const radius = (size - 8) / 2
+  const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
-  const progress = Math.max(0, Math.min(100, score))
-  const strokeDashoffset = circumference * (1 - progress / 100)
+  const target = score == null ? 0 : Math.max(0, Math.min(100, score))
+  const [drawn, setDrawn] = useState(animate ? 0 : target)
 
-  const color =
-    progress >= 80
-      ? '#00B37E'
-      : progress >= 60
-        ? '#2563EB'
-        : progress >= 40
-          ? '#F59E0B'
-          : '#EF4444'
+  useEffect(() => {
+    if (!animate) {
+      setDrawn(target)
+      return
+    }
+    setDrawn(0)
+    const start = performance.now()
+    const dur = 800
+    let raf: number
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / dur)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setDrawn(target * eased)
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [target, animate])
+
+  const dashOffset = circumference - (drawn / 100) * circumference
+  const color = scoreColor(score)
+  const fontSize = size >= 80 ? 22 : size >= 64 ? 17 : 13
 
   return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        className="-rotate-90"
-      >
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
         <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="#E4E4E7"
-          strokeWidth={6}
+          cx={size / 2} cy={size / 2} r={radius}
+          stroke="var(--lf-border)" strokeWidth={2} fill="none"
         />
         <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth={6}
-          strokeLinecap="round"
+          cx={size / 2} cy={size / 2} r={radius}
+          stroke={color} strokeWidth={strokeWidth} fill="none"
           strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+          strokeDashoffset={score == null ? circumference : dashOffset}
+          strokeLinecap="round"
+          style={{ transition: 'stroke 0.2s' }}
         />
       </svg>
-      <span
-        className="absolute text-xs font-mono font-bold"
-        style={{ color, fontSize: size < 50 ? '10px' : '12px' }}
-      >
-        {Math.round(progress)}
-      </span>
+      <div style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'var(--f-mono)', fontWeight: 500,
+        fontSize, color: 'var(--lf-ink)',
+      }}>
+        {score == null ? '—' : Math.round(drawn)}
+      </div>
     </div>
   )
 }

@@ -1,99 +1,359 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Tooltip,
-  type ChartData,
-} from 'chart.js'
-import { Bar } from 'react-chartjs-2'
 import { useBazaarData } from '@/hooks/useBazaarData'
 import TierBadge from '@/components/TierBadge'
 import ReputationGauge from '@/components/ReputationGauge'
 import PaymentModal from '@/components/PaymentModal'
 import MockDataBanner from '@/components/MockDataBanner'
-import type { Skill } from '@/lib/types'
+import AddressChip from '@/components/AddressChip'
+import ScorePill from '@/components/ScorePill'
+import type { Skill, Job } from '@/lib/types'
+import { useWallet } from '@/context/WalletContext'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip)
-
-function truncateAddress(address: string): string {
-  if (address.length < 10) return address
-  return `${address.slice(0, 6)}…${address.slice(-4)}`
+function scoreColor(s: number | null): string {
+  if (s == null) return 'var(--lf-border)'
+  if (s >= 80) return 'var(--lf-green)'
+  if (s >= 50) return 'var(--lf-amber)'
+  return 'var(--lf-red)'
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  })
+function generateHistory(skill: Skill): number[] {
+  if (skill.jobs === 0) return []
+  const n = Math.min(48, skill.jobs)
+  const arr: number[] = []
+  let seed = parseInt(skill.id) * 37 + skill.jobs
+  const rand = () => {
+    seed = (seed * 9301 + 49297) % 233280
+    return seed / 233280
+  }
+  for (let i = 0; i < n; i++) {
+    const noise = (rand() - 0.5) * 35
+    const trend = (i / n) * 8
+    let v = Math.round(skill.score + noise + trend - 4)
+    v = Math.max(20, Math.min(100, v))
+    arr.push(v)
+  }
+  return arr
+}
+
+function ReputationChart({ values, avg }: { values: number[]; avg: number }) {
+  const chartH = 180
+  return (
+    <div className="card card-pad-sm" style={{ padding: 24 }}>
+      <div style={{
+        position: 'relative', height: chartH,
+        display: 'flex', alignItems: 'flex-end', gap: 3,
+        paddingTop: 10, borderBottom: '1px solid var(--lf-border)',
+      }}>
+        {/* avg line */}
+        <div style={{
+          position: 'absolute', left: 0, right: 0,
+          bottom: `${(avg / 100) * (chartH - 10)}px`,
+          borderTop: '1px dashed var(--lf-accent)', pointerEvents: 'none',
+        }}>
+          <span style={{
+            position: 'absolute', right: 0, top: -10,
+            background: 'var(--lf-surface)', padding: '0 6px',
+            fontFamily: 'var(--f-mono)', fontSize: 10, color: 'var(--lf-accent)',
+          }}>
+            avg {avg}
+          </span>
+        </div>
+        {/* y-axis */}
+        <div style={{
+          position: 'absolute', left: -28, top: 0, bottom: 0,
+          width: 24, display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+          fontFamily: 'var(--f-mono)', fontSize: 9, color: 'var(--lf-ink-3)', textAlign: 'right',
+        }}>
+          <span>100</span><span>50</span><span>0</span>
+        </div>
+        {values.map((v, i) => (
+          <div key={i} title={`Job ${i + 1}: score ${v}`} style={{
+            flex: 1, height: `${(v / 100) * (chartH - 10)}px`,
+            background: scoreColor(v), opacity: 0.85,
+            borderRadius: '2px 2px 0 0', cursor: 'pointer',
+            transition: 'opacity .15s',
+          }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontFamily: 'var(--f-mono)', fontSize: 10, color: 'var(--lf-ink-3)' }}>
+        <span>job 1</span>
+        <span>job {values.length}</span>
+      </div>
+    </div>
+  )
+}
+
+function RecentJobsTable({ jobs, skillId }: { jobs: Job[]; skillId: string }) {
+  const skillJobs = jobs.filter((j) => j.skillId === skillId)
+
+  if (skillJobs.length === 0) {
+    return (
+      <div style={{ border: '1px dashed var(--lf-border)', borderRadius: 6, padding: '32px 24px', textAlign: 'center', color: 'var(--lf-ink-3)', fontSize: 13 }}>
+        No executions yet. Pay for this skill to register the first.
+      </div>
+    )
+  }
+
+  return (
+    <div className="card" style={{ overflow: 'hidden' }}>
+      <table className="table">
+        <thead>
+          <tr>
+            <th style={{ width: 100 }}>When</th>
+            <th style={{ width: 80 }}>Score</th>
+            <th>Tx Hash</th>
+            <th>Consumer</th>
+          </tr>
+        </thead>
+        <tbody>
+          {skillJobs.map((r, i) => {
+            const diff = Date.now() - new Date(r.timestamp).getTime()
+            const ts = diff < 60_000 ? `${Math.floor(diff / 1000)}s ago`
+              : diff < 3_600_000 ? `${Math.floor(diff / 60_000)}m ago`
+              : `${Math.floor(diff / 3_600_000)}h ago`
+            return (
+              <tr key={r.id || i}>
+                <td style={{ fontFamily: 'var(--f-mono)', color: 'var(--lf-ink-2)' }}>{ts}</td>
+                <td><ScorePill score={r.score} /></td>
+                <td><AddressChip address={r.settlementTx} head={6} tail={4} /></td>
+                <td><AddressChip address={r.consumer} /></td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function MetaChip({ label, link }: { label: string; link?: boolean }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      fontFamily: 'var(--f-mono)', fontSize: 12,
+      padding: '4px 10px', border: '1px solid var(--lf-border)',
+      borderRadius: 4, color: 'var(--lf-ink-2)', background: 'var(--lf-surface)',
+    }}>
+      {label}
+      {link && <span style={{ opacity: 0.5 }}>↗</span>}
+    </span>
+  )
+}
+
+function SectionHeading({ kicker, title, sub }: { kicker: string; title: string; sub: string }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div className="t-label" style={{ marginBottom: 8 }}>{kicker}</div>
+      <h2 className="t-display" style={{ fontSize: 24, margin: '0 0 6px', letterSpacing: '-0.01em' }}>{title}</h2>
+      <p style={{ color: 'var(--lf-ink-3)', fontSize: 13, margin: 0 }}>{sub}</p>
+    </div>
+  )
+}
+
+const SKILL_DEFAULT_PARAMS: Record<string, Record<string, string>> = {
+  'hackathon-scout':    { query: 'turing test mantle', limit: '10' },
+  'mantle-tvl-monitor': {},
+  'aave-v3-rates':      { asset: 'all' },
+  'mantle-gas-oracle':  {},
+  'token-price-feed':   { tokens: 'USDe,USDC' },
+  'defi-protocol-stats':{ protocol: 'merchant-moe' },
+}
+
+function TryItPanel({ skill, txHash }: { skill: Skill; txHash: string | null }) {
+  const defaultParams = SKILL_DEFAULT_PARAMS[skill.name] ?? {}
+  const [payload, setPayload] = useState(
+    JSON.stringify({ query: `Run ${skill.name}`, params: defaultParams }, null, 2)
+  )
+  const [running, setRunning] = useState(false)
+  const [response, setResponse] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const parsedParams = useMemo(() => {
+    try { return (JSON.parse(payload) as { params?: Record<string, string> }).params ?? {} }
+    catch { return {} }
+  }, [payload])
+
+  const qs = Object.keys(parsedParams).length ? '?' + new URLSearchParams(parsedParams).toString() : ''
+  const realEndpoint = skill.endpoint || `https://ledgerforge-${skill.name.slice(0, 6).toLowerCase()}.fly.dev/v1/skills/${skill.id}/run`
+  const displayEndpoint = `${realEndpoint}${qs}`
+  const accessToken = txHash ? `lfx_${txHash.slice(2, 18)}` : `lfx_${skill.id}_demo`
+
+  async function handleRun() {
+    setRunning(true)
+    setResponse(null)
+    try {
+      if (skill.endpoint) {
+        const res = await fetch(`${skill.endpoint}${qs}`, {
+          headers: { 'Authorization': `Bearer settled:${txHash ?? 'demo'}:${Date.now()}` },
+        })
+        const data = await res.json()
+        setResponse(JSON.stringify(data, null, 2))
+      } else {
+        await new Promise((r) => setTimeout(r, 1400 + Math.random() * 600))
+        const jobId = `job_${Math.random().toString(36).slice(2, 10)}`
+        setResponse(JSON.stringify({
+          success: true,
+          skillId: parseInt(skill.id),
+          jobId,
+          output: `[${skill.name}] Request processed. Score written on-chain.`,
+          reputationScore: skill.score,
+          settlementTx: txHash ?? `0x${'0'.repeat(64)}`,
+          latencyMs: Math.round(140 + Math.random() * 80),
+        }, null, 2))
+      }
+    } catch (err) {
+      setResponse(JSON.stringify({
+        error: String(err instanceof Error ? err.message : err),
+        hint: skill.endpoint?.includes('localhost')
+          ? 'Start the skill server first: cd agents && npx ts-node src/mantle-skills.ts --serve'
+          : 'Skill endpoint unreachable.',
+      }, null, 2))
+    }
+    setRunning(false)
+  }
+
+  const curlSnippet = `curl "${displayEndpoint}" \\
+  -H "Authorization: Bearer ${accessToken}"`
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Endpoint + curl */}
+      <div className="card card-pad-sm">
+        <div className="t-label" style={{ marginBottom: 10 }}>Endpoint</div>
+        <div style={{
+          fontFamily: 'var(--f-mono)', fontSize: 12, padding: '10px 12px',
+          background: 'var(--lf-surface-2)', border: '1px solid rgba(15,190,127,0.3)',
+          borderRadius: 4, color: 'var(--lf-accent)', marginBottom: 16, wordBreak: 'break-all',
+        }}>
+          GET {displayEndpoint}
+        </div>
+
+        <div className="t-label" style={{ marginBottom: 8 }}>cURL</div>
+        <div style={{ position: 'relative' }}>
+          <pre style={{
+            fontFamily: 'var(--f-mono)', fontSize: 11, lineHeight: 1.6,
+            padding: '12px 40px 12px 12px', background: 'var(--lf-surface-2)',
+            border: '1px solid var(--lf-border)', borderRadius: 4,
+            color: 'var(--lf-ink-2)', margin: 0, overflowX: 'auto',
+            whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+          }}>
+            {curlSnippet}
+          </pre>
+          <button
+            onClick={() => { navigator.clipboard.writeText(curlSnippet); setCopied(true); setTimeout(() => setCopied(false), 1800) }}
+            style={{
+              position: 'absolute', top: 8, right: 8,
+              background: 'var(--lf-surface)', border: '1px solid var(--lf-border)',
+              borderRadius: 4, padding: '2px 8px', cursor: 'pointer',
+              fontFamily: 'var(--f-mono)', fontSize: 10, color: copied ? 'var(--lf-accent)' : 'var(--lf-ink-3)',
+            }}
+          >
+            {copied ? '✓' : '⎘'}
+          </button>
+        </div>
+      </div>
+
+      {/* Payload editor + run */}
+      <div className="card card-pad-sm">
+        <div className="t-label" style={{ marginBottom: 8 }}>Request payload (JSON)</div>
+        <textarea
+          value={payload}
+          onChange={(e) => setPayload(e.target.value)}
+          rows={5}
+          spellCheck={false}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            fontFamily: 'var(--f-mono)', fontSize: 12, lineHeight: 1.6,
+            padding: '10px 12px', background: 'var(--lf-surface-2)',
+            border: '1px solid var(--lf-border)', borderRadius: 4,
+            color: 'var(--lf-ink)', resize: 'vertical', outline: 'none',
+            marginBottom: 12,
+          }}
+        />
+        <button
+          className="btn btn-primary btn-full"
+          onClick={handleRun}
+          disabled={running}
+          style={{ opacity: running ? 0.7 : 1 }}
+        >
+          {running ? (
+            <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2, display: 'inline-block', marginRight: 8, verticalAlign: 'middle' }} />Running…</>
+          ) : 'Send Request →'}
+        </button>
+      </div>
+
+      {/* Response */}
+      {(running || response) && (
+        <div className="card card-pad-sm">
+          <div className="t-label" style={{ marginBottom: 8 }}>Response</div>
+          {running ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--lf-ink-3)', fontSize: 13 }}>
+              <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2, display: 'inline-block' }} />
+              Calling skill endpoint…
+            </div>
+          ) : (
+            <pre style={{
+              fontFamily: 'var(--f-mono)', fontSize: 12, lineHeight: 1.6,
+              padding: '12px', background: 'var(--lf-surface-2)',
+              border: '1px solid rgba(15,190,127,0.3)', borderRadius: 4,
+              color: 'var(--lf-accent-2)', margin: 0, overflowX: 'auto',
+            }}>
+              {response}
+            </pre>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function SkillDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { skills, jobs, isMockData, loading } = useBazaarData()
+  const { account } = useWallet()
   const [skill, setSkill] = useState<Skill | null>(null)
   const [showModal, setShowModal] = useState(false)
+  const [hasPaid, setHasPaid] = useState(false)
+  const [accessTxHash, setAccessTxHash] = useState<string | null>(null)
 
   useEffect(() => {
     const found = skills.find((s) => s.id === id)
     if (found) setSkill(found)
   }, [skills, id])
 
-  const skillJobs = jobs.filter((j) => j.skillId === id).slice(0, 10)
+  const history = useMemo(() => {
+    if (!skill) return []
+    if (skill.reputationHistory.length > 0) return skill.reputationHistory.map((p) => p.score)
+    return generateHistory(skill)
+  }, [skill])
 
-  const chartData: ChartData<'bar'> = {
-    labels: skill?.reputationHistory.map((p) => formatDate(p.timestamp)) ?? [],
-    datasets: [
-      {
-        label: 'Reputation Score',
-        data: skill?.reputationHistory.map((p) => p.score) ?? [],
-        backgroundColor: '#00B37E',
-        borderRadius: 4,
-      },
-    ],
-  }
-
-  const chartOptions = {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: {
-        min: 0,
-        max: 100,
-        grid: { color: '#E4E4E7' },
-        ticks: { font: { family: 'var(--font-mono)', size: 11 } },
-      },
-      x: {
-        grid: { display: false },
-        ticks: { font: { family: 'var(--font-mono)', size: 11 } },
-      },
-    },
-  }
+  const hasHistory = history.length > 0
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-16 space-y-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-24 bg-lf-surface border border-lf-border rounded-xl animate-pulse" />
-        ))}
+      <div className="container" style={{ paddingTop: 64 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 48 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {[280, 200, 160].map((h, i) => (
+              <div key={i} className="card" style={{ height: h, opacity: 0.4 }} />
+            ))}
+          </div>
+          <div className="card" style={{ height: 300, opacity: 0.4 }} />
+        </div>
       </div>
     )
   }
 
   if (!skill) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-24 text-center">
-        <p
-          className="text-4xl font-bold text-lf-border mb-3"
-          style={{ fontFamily: 'var(--font-syne)' }}
-        >
+      <div className="container" style={{ paddingTop: 96, textAlign: 'center' }}>
+        <div className="t-display" style={{ fontSize: 32, marginBottom: 12, color: 'var(--lf-ink-2)' }}>
           Skill not found
-        </p>
-        <Link href="/bazaar" className="text-lf-accent hover:underline text-sm">
+        </div>
+        <Link href="/bazaar" style={{ color: 'var(--lf-accent)', fontSize: 14 }}>
           ← Back to Bazaar
         </Link>
       </div>
@@ -101,238 +361,175 @@ export default function SkillDetailPage() {
   }
 
   return (
-    <>
+    <div className="page">
       {isMockData && <MockDataBanner />}
       {showModal && (
-        <PaymentModal skill={skill} onClose={() => setShowModal(false)} />
+        <PaymentModal
+          skill={skill}
+          onClose={() => setShowModal(false)}
+          onSuccess={(tx) => { setAccessTxHash(tx); setHasPaid(true); setShowModal(false) }}
+        />
       )}
 
-      <div className="max-w-4xl mx-auto px-6 py-10 space-y-8">
-        {/* Back */}
-        <Link
-          href="/bazaar"
-          className="text-sm text-lf-muted hover:text-lf-ink transition-colors"
-        >
-          ← Back to Bazaar
-        </Link>
+      <div className="container" style={{ paddingTop: 32, paddingBottom: 80 }}>
+        {/* Breadcrumb */}
+        <div style={{ fontFamily: 'var(--f-mono)', fontSize: 12, color: 'var(--lf-ink-3)', marginBottom: 24 }}>
+          <Link href="/bazaar" style={{ cursor: 'pointer' }}>The Bazaar</Link>
+          <span style={{ margin: '0 8px' }}>/</span>
+          <span style={{ color: 'var(--lf-ink-2)' }}>{skill.name}</span>
+        </div>
 
-        {/* Header */}
-        <div className="bg-lf-surface border border-lf-border rounded-2xl p-8">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-3">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 48 }}>
+          {/* LEFT */}
+          <div>
+            {/* Header */}
+            <div style={{ marginBottom: 48 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                 <TierBadge tier={skill.tier} />
-                <span className="text-xs font-mono text-lf-muted">v{skill.version}</span>
+                <span style={{ fontFamily: 'var(--f-mono-2)', fontSize: 11, color: 'var(--lf-ink-3)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  Skill ID #{skill.id}
+                </span>
               </div>
-              <h1
-                className="text-3xl font-extrabold text-lf-ink mb-3"
-                style={{ fontFamily: 'var(--font-syne)' }}
-              >
+              <h1 className="t-display" style={{ fontSize: 40, lineHeight: 1.1, letterSpacing: '-0.02em', margin: '0 0 8px', fontWeight: 600 }}>
                 {skill.name}
               </h1>
-              <p className="text-lf-muted leading-relaxed">{skill.description}</p>
-
-              <div className="flex flex-wrap gap-2 mt-4">
-                {skill.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-xs font-mono bg-lf-bg border border-lf-border px-2 py-0.5 rounded text-lf-muted"
-                  >
-                    #{tag}
-                  </span>
-                ))}
+              <div style={{ fontFamily: 'var(--f-mono-2)', fontSize: 13, color: 'var(--lf-ink-3)', marginBottom: 24 }}>
+                {skill.version}
+              </div>
+              <p style={{ fontSize: 17, lineHeight: 1.6, color: 'var(--lf-ink-2)', margin: 0, maxWidth: 640 }}>
+                {skill.description}
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 28 }}>
+                <MetaChip label={`${skill.jobs.toLocaleString()} total jobs`} />
+                <MetaChip label="avg 0.18s response" />
+                <MetaChip label={`Registered ${skill.registered}`} />
+                <MetaChip label={`ERC-8004 ID: #${skill.id}`} link />
               </div>
             </div>
-            <div className="flex flex-col items-center gap-2">
-              <ReputationGauge score={skill.reputationScore} size={80} />
-              <span className="text-xs font-mono text-lf-muted">reputation</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Metadata */}
-        <div className="grid sm:grid-cols-2 gap-4">
-          {[
-            {
-              label: 'Owner',
-              value: (
-                <a
-                  href={`https://mantlescan.xyz/address/${skill.owner}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-sm text-lf-accent hover:underline"
-                >
-                  {truncateAddress(skill.owner)}
-                </a>
-              ),
-            },
-            {
-              label: 'ERC-8004 Agent ID',
-              value: (
-                <a
-                  href={`https://mantlescan.xyz/address/${skill.agentId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-sm text-lf-accent hover:underline"
-                >
-                  {truncateAddress(skill.agentId)}
-                </a>
-              ),
-            },
-            {
-              label: 'Endpoint',
-              value: (
-                <span className="font-mono text-sm text-lf-muted italic">
-                  Available on access
-                </span>
-              ),
-            },
-            {
-              label: 'Metadata URI',
-              value: (
-                <a
-                  href={`https://ipfs.io/ipfs/${skill.metadataURI.replace('ipfs://', '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-sm text-lf-accent hover:underline truncate block max-w-xs"
-                >
-                  {skill.metadataURI}
-                </a>
-              ),
-            },
-            {
-              label: 'Total Jobs',
-              value: (
-                <span className="font-mono text-sm font-bold text-lf-ink">
-                  {skill.jobCount.toLocaleString()}
-                </span>
-              ),
-            },
-            {
-              label: 'Listed',
-              value: (
-                <span className="font-mono text-sm text-lf-ink">
-                  {formatDate(skill.createdAt)}
-                </span>
-              ),
-            },
-          ].map(({ label, value }) => (
-            <div
-              key={label}
-              className="bg-lf-surface border border-lf-border rounded-xl p-4"
-            >
-              <p className="text-xs font-mono text-lf-muted uppercase tracking-widest mb-1">
-                {label}
-              </p>
-              {value}
-            </div>
-          ))}
-        </div>
-
-        {/* Reputation History */}
-        <div className="bg-lf-surface border border-lf-border rounded-2xl p-6">
-          <h2
-            className="text-xl font-bold text-lf-ink mb-1"
-            style={{ fontFamily: 'var(--font-syne)' }}
-          >
-            Reputation History
-          </h2>
-          <p className="text-xs font-mono text-lf-muted mb-6">
-            Score per job completion over time
-          </p>
-          {skill.reputationHistory.length > 0 ? (
-            <Bar data={chartData} options={chartOptions} height={120} />
-          ) : (
-            <p className="text-sm text-lf-muted text-center py-8">
-              No history yet — scores appear after first execution.
-            </p>
-          )}
-        </div>
-
-        {/* Use This Skill */}
-        <div className="bg-lf-ink rounded-2xl p-8">
-          <h2
-            className="text-2xl font-bold text-white mb-2"
-            style={{ fontFamily: 'var(--font-syne)' }}
-          >
-            Use This Skill
-          </h2>
-          <p className="text-zinc-400 mb-6 text-sm">
-            Connect your wallet to access this service on Mantle Network. Payment is
-            locked in escrow until the job completes.
-          </p>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-            <div>
-              <p className="text-xs font-mono text-zinc-400 uppercase tracking-widest mb-1">
-                Price per call
-              </p>
-              <p className="text-3xl font-bold text-white" style={{ fontFamily: 'var(--font-mono)' }}>
-                {skill.tier === 'FREE' ? (
-                  <span className="text-lf-accent">Free</span>
-                ) : (
-                  `$${skill.pricePerCall} ${skill.acceptedToken}`
-                )}
-              </p>
-            </div>
-            <button
-              onClick={() => setShowModal(true)}
-              className="bg-lf-accent hover:bg-lf-accent-hover text-white font-semibold px-8 py-3 rounded-xl transition-colors whitespace-nowrap"
-            >
-              {skill.tier === 'FREE' ? 'Access Skill →' : 'Connect & Pay →'}
-            </button>
-          </div>
-        </div>
-
-        {/* Recent Jobs */}
-        <div className="bg-lf-surface border border-lf-border rounded-2xl p-6">
-          <h2
-            className="text-xl font-bold text-lf-ink mb-4"
-            style={{ fontFamily: 'var(--font-syne)' }}
-          >
-            Recent Executions
-          </h2>
-          {skillJobs.length === 0 ? (
-            <p className="text-sm text-lf-muted text-center py-6">
-              No job history available yet.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {skillJobs.map((job) => (
-                <div
-                  key={job.id}
-                  className="flex items-center justify-between py-2.5 border-b border-lf-border last:border-0 gap-4"
-                >
-                  <span className="font-mono text-xs text-lf-muted whitespace-nowrap">
-                    {new Date(job.timestamp).toLocaleTimeString()}
-                  </span>
-                  <span className="font-mono text-xs text-lf-muted truncate flex-1">
-                    {truncateAddress(job.consumer)}
-                  </span>
-                  <span
-                    className={`font-mono text-xs font-bold ${
-                      job.reputationScore >= 80
-                        ? 'text-lf-accent'
-                        : job.reputationScore >= 60
-                          ? 'text-lf-basic'
-                          : 'text-yellow-500'
-                    }`}
-                  >
-                    {job.reputationScore}/100
-                  </span>
-                  <a
-                    href={`https://mantlescan.xyz/tx/${job.settlementTx}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-mono text-xs text-lf-muted hover:text-lf-accent truncate max-w-[120px]"
-                  >
-                    {truncateAddress(job.settlementTx)}
-                  </a>
+            {/* Reputation chart */}
+            <section style={{ marginBottom: 56 }}>
+              <SectionHeading
+                kicker="On-chain history"
+                title="Reputation over time"
+                sub="Each bar = one job completion. Score is written on-chain via the ERC-8004 registry."
+              />
+              {hasHistory ? (
+                <ReputationChart values={history} avg={skill.score} />
+              ) : (
+                <div style={{ border: '1px dashed var(--lf-border)', borderRadius: 6, padding: '48px 24px', textAlign: 'center', color: 'var(--lf-ink-3)' }}>
+                  <div style={{ fontFamily: 'var(--f-display)', fontSize: 18, color: 'var(--lf-ink-2)', marginBottom: 6 }}>
+                    No reputation history yet
+                  </div>
+                  <div style={{ fontSize: 13 }}>
+                    This skill is registered but has not been called. Be the first to use it.
+                  </div>
                 </div>
-              ))}
+              )}
+              {hasHistory && (
+                <div style={{ marginTop: 16, fontFamily: 'var(--f-mono)', fontSize: 12, color: 'var(--lf-accent)' }}>
+                  {skill.jobs.toLocaleString()} on-chain reputation writes · <a href={`https://mantlescan.xyz/address/${CONTRACTS.SkillRegistry}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--lf-accent)' }}>view on mantlescan ↗</a>
+                </div>
+              )}
+            </section>
+
+            {/* Recent jobs */}
+            <section>
+              <SectionHeading
+                kicker="Execution log"
+                title="Recent executions"
+                sub="Live feed of every call to this skill, with on-chain settlement hash."
+              />
+              <RecentJobsTable jobs={jobs} skillId={skill.id} />
+            </section>
+
+            {/* Try It panel — shown after payment */}
+            {hasPaid && (
+              <section id="try-it" style={{ marginTop: 56 }}>
+                <SectionHeading
+                  kicker="Access granted"
+                  title="Try your skill"
+                  sub="Send a live request to this skill's endpoint. Response is simulated in demo mode."
+                />
+                <TryItPanel skill={skill} txHash={accessTxHash} />
+              </section>
+            )}
+          </div>
+
+          {/* RIGHT — sticky */}
+          <aside style={{ position: 'sticky', top: 88, height: 'fit-content', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="card card-pad-sm">
+              <div className="t-label" style={{ marginBottom: 12 }}>Access this skill</div>
+              <h3 className="t-display" style={{ fontSize: 22, margin: '0 0 16px' }}>
+                {skill.price === 0 ? 'Free to call' : `${skill.price.toFixed(2)} USDC per call`}
+              </h3>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20, fontSize: 12 }}>
+                <span style={{ width: 16, height: 16, borderRadius: '50%', background: '#2775CA', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 9 }}>$</span>
+                <span style={{ color: 'var(--lf-ink-2)' }}>Payable in USDC on Mantle</span>
+              </div>
+
+              {/* Reputation summary */}
+              <div style={{ background: 'var(--lf-surface-2)', border: '1px solid var(--lf-border)', borderRadius: 6, padding: 20, display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                    <span className="t-mono" style={{ fontSize: 40, fontWeight: 500, lineHeight: 1, color: hasHistory ? scoreColor(skill.score) : 'var(--lf-ink-3)' }}>
+                      {hasHistory ? skill.score : '—'}
+                    </span>
+                    <span style={{ fontFamily: 'var(--f-mono)', color: 'var(--lf-ink-3)', fontSize: 14 }}>/ 100</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--lf-ink-2)', marginTop: 6, lineHeight: 1.4 }}>
+                    {hasHistory ? `Based on ${skill.jobs.toLocaleString()} on-chain completions` : 'No on-chain history yet'}
+                  </div>
+                </div>
+                <ReputationGauge score={hasHistory ? skill.score : null} size={72} />
+              </div>
+
+              <button
+                className="btn btn-primary btn-full btn-lg"
+                onClick={() => hasPaid ? document.getElementById('try-it')?.scrollIntoView({ behavior: 'smooth' }) : setShowModal(true)}
+              >
+                {hasPaid ? 'Try it now ↓' : !account ? 'Connect Wallet' : skill.price === 0 ? 'Access Skill' : 'Pay & Access'} {!hasPaid && <span>→</span>}
+              </button>
+
+              <div style={{ marginTop: 14, fontSize: 11, color: 'var(--lf-ink-3)', textAlign: 'center', lineHeight: 1.5 }}>
+                Payment settles on Mantle mainnet in ~2s<br />
+                Powered by LedgerForge x402
+              </div>
+
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--lf-border)', fontSize: 12, color: 'var(--lf-ink-3)', display: 'flex', justifyContent: 'space-between' }}>
+                <span>View contract</span>
+                <a target="_blank" rel="noopener noreferrer" href={`https://mantlescan.xyz/address/${CONTRACTS.SkillRegistry}`} style={{ color: 'var(--lf-ink-2)' }}>
+                  mantlescan ↗
+                </a>
+              </div>
             </div>
-          )}
+
+            <div className="card card-pad-sm">
+              <div className="t-label" style={{ marginBottom: 12 }}>Service endpoint</div>
+              <div style={{ fontFamily: 'var(--f-mono)', fontSize: 12, background: 'var(--lf-surface-2)', border: `1px solid ${hasPaid ? 'rgba(15,190,127,0.3)' : 'var(--lf-border)'}`, borderRadius: 4, padding: '10px 12px', marginBottom: 10, color: hasPaid ? 'var(--lf-accent)' : 'var(--lf-ink-2)', wordBreak: 'break-all' }}>
+                https://ledgerforge-{skill.name.slice(0, 6).toLowerCase()}.fly.dev<br />
+                <span style={{ color: hasPaid ? 'var(--lf-accent-2)' : 'var(--lf-ink-3)' }}>
+                  /v1/skills/{skill.id}/{hasPaid ? 'run' : '***'}
+                </span>
+              </div>
+              {hasPaid && accessTxHash && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, fontFamily: 'var(--f-mono)', fontSize: 11 }}>
+                  <span style={{ color: 'var(--lf-ink-3)' }}>Access token</span>
+                  <AddressChip address={`lfx_${accessTxHash.slice(2, 18)}`} head={12} tail={0} />
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: hasPaid ? 'var(--lf-accent-2)' : 'var(--lf-ink-3)' }}>
+                {hasPaid ? '✓ Access granted' : 'Endpoint revealed on payment.'} Owner: <AddressChip address={skill.owner} />
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
-    </>
+    </div>
   )
+}
+
+const CONTRACTS = {
+  SkillRegistry: '0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992',
 }

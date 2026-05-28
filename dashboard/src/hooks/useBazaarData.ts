@@ -1,123 +1,182 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import type { Skill, Stats, Job } from '@/lib/types'
-
-// ── Mock fallback data ────────────────────────────────────────────────────────
+import type { Skill, Stats, Job, Tier } from '@/lib/types'
 
 const MOCK_SKILLS: Skill[] = [
   {
+    id: '9',
+    name: 'hackathon-scout',
+    version: 'v1.0.0',
+    tier: 'BASIC',
+    score: 0,
+    jobs: 0,
+    price: 0.10,
+    owner: '0xC0296012Cfbb0e6DF5dA7158B65Dbc46DD9650e0',
+    description: 'Searches GitHub for hackathon project submissions by keyword or ecosystem tag. Returns project names, descriptions, tech stack, stars, and repo links. Discover Mantle, ETHGlobal, and Web3 hackathon builds.',
+    registered: '2026-05-26',
+    isReal: true,
+    endpoint: 'http://localhost:3005/hackathon-scout',
+    metadataURI: 'ipfs://ledgerforge/mantle/hackathon-scout/v1',
+    agentId: '9',
+    acceptedToken: 'USDC',
+    tags: ['hackathon', 'github', 'discovery', 'web3'],
+    reputationHistory: [],
+  },
+  {
     id: '1',
-    name: 'GPT-4o Code Review',
-    version: '1.2.0',
-    endpoint: 'https://api.example.com/review',
-    metadataURI: 'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
-    owner: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-    pricePerCall: '0.50',
-    acceptedToken: 'USDe',
-    reputationScore: 94,
-    jobCount: 1847,
+    name: 'spawn-failure-analyst',
+    version: 'v1.0.0',
     tier: 'PRO',
-    agentId: '0x8004A818BFB912233c491871b3d84c89A494BD9e',
-    description:
-      'Production-grade code review powered by GPT-4o. Returns structured feedback with severity ratings and fix suggestions.',
-    tags: ['code', 'review', 'gpt4o'],
-    createdAt: '2026-03-10T12:00:00Z',
-    reputationHistory: Array.from({ length: 12 }, (_, i) => ({
-      timestamp: new Date(Date.now() - (11 - i) * 7 * 86400000).toISOString(),
-      score: 82 + Math.floor(Math.random() * 15),
-      jobId: `job-${i}`,
-    })),
+    score: 90,
+    jobs: 1,
+    price: 0.50,
+    owner: '0xC0296012Cfbb0e6DF5dA7158B65Dbc46DD9650e0',
+    description: 'Forensic analysis of failed agent spawns. Returns root-cause hypotheses ranked by likelihood, with on-chain lineage proof for each diagnostic.',
+    registered: '2026-05-26',
+    isReal: true,
+    endpoint: 'https://ledgerforge-spawn.fly.dev',
+    metadataURI: 'ipfs://QmSpawnFailureAnalyst',
+    agentId: '1',
+    acceptedToken: 'USDC',
+    tags: ['forensics', 'agents', 'diagnostics'],
+    reputationHistory: [],
   },
   {
     id: '2',
-    name: 'On-Chain Data Analyst',
-    version: '0.9.4',
-    endpoint: 'https://api.example.com/analyze',
-    metadataURI: 'ipfs://QmPChd2hVbrJ6bfo3WBcTW4iZnpHm8TEzWkLHmLpXhF57A',
-    owner: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-    pricePerCall: '1.00',
+    name: 'lineage-context-builder',
+    version: 'v0.4.1',
+    tier: 'BASIC',
+    score: 0,
+    jobs: 0,
+    price: 0.10,
+    owner: '0xC0296012Cfbb0e6DF5dA7158B65Dbc46DD9650e0',
+    description: 'Reconstructs parent-child execution lineage for any agent run. Returns Merkle-verified context window suitable for downstream reasoning.',
+    registered: '2026-05-25',
+    isReal: true,
+    endpoint: 'https://ledgerforge-lineage.fly.dev',
+    metadataURI: 'ipfs://QmLineageContextBuilder',
+    agentId: '2',
     acceptedToken: 'USDC',
-    reputationScore: 88,
-    jobCount: 962,
-    tier: 'PRO',
-    agentId: '0x8004A818000000000000000000000000000000002',
-    description:
-      'Deep Mantle chain analytics: wallet profiling, DeFi position summarization, and risk scoring for any address.',
-    tags: ['analytics', 'onchain', 'defi'],
-    createdAt: '2026-02-20T09:30:00Z',
-    reputationHistory: Array.from({ length: 12 }, (_, i) => ({
-      timestamp: new Date(Date.now() - (11 - i) * 7 * 86400000).toISOString(),
-      score: 78 + Math.floor(Math.random() * 14),
-      jobId: `job-rep-${i}`,
-    })),
+    tags: ['lineage', 'context', 'merkle'],
+    reputationHistory: [],
   },
   {
     id: '3',
-    name: 'IPFS Document Summarizer',
-    version: '2.0.1',
-    endpoint: 'https://api.example.com/summarize',
-    metadataURI: 'ipfs://QmT9qk3CRYbFDWpDFYeAv8T8H1gnongJR4W5vf9uJ7PQfG',
-    owner: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
-    pricePerCall: '0.10',
-    acceptedToken: 'USDe',
-    reputationScore: 76,
-    jobCount: 3201,
-    tier: 'BASIC',
-    agentId: '0x8004A818000000000000000000000000000000003',
-    description:
-      'Fetch any IPFS document and return a concise summary with key points and sentiment.',
-    tags: ['ipfs', 'summarization', 'nlp'],
-    createdAt: '2026-01-05T18:00:00Z',
-    reputationHistory: Array.from({ length: 12 }, (_, i) => ({
-      timestamp: new Date(Date.now() - (11 - i) * 7 * 86400000).toISOString(),
-      score: 68 + Math.floor(Math.random() * 12),
-      jobId: `job-sum-${i}`,
-    })),
+    name: 'decision-hash-verifier',
+    version: 'v1.0.0',
+    tier: 'FREE',
+    score: 0,
+    jobs: 0,
+    price: 0.00,
+    owner: '0xC0296012Cfbb0e6DF5dA7158B65Dbc46DD9650e0',
+    description: 'Verifies an agent decision against its claimed input commitments. Returns boolean + cryptographic witness, no trust required.',
+    registered: '2026-05-25',
+    isReal: true,
+    endpoint: 'https://ledgerforge-decision.fly.dev',
+    metadataURI: 'ipfs://QmDecisionHashVerifier',
+    agentId: '3',
+    acceptedToken: 'USDC',
+    tags: ['verification', 'cryptography', 'decisions'],
+    reputationHistory: [],
   },
   {
     id: '4',
-    name: 'Translation Agent',
-    version: '1.0.0',
-    endpoint: 'https://api.example.com/translate',
-    metadataURI: 'ipfs://QmVLwvmGehsrNEvhcCnnsw5RQNseohgEkFNN1848PPxR8m',
-    owner: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B',
-    pricePerCall: '0.00',
+    name: 'byreal-pool-analysis',
+    version: 'v1.0.0',
+    tier: 'PRO',
+    score: 94,
+    jobs: 847,
+    price: 0.05,
+    owner: '0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992',
+    description: 'Real-time liquidity and slippage analytics for Byreal pools. Returns optimal route + price impact + MEV exposure for any swap intent.',
+    registered: '2026-03-12',
+    isReal: false,
+    endpoint: '',
+    metadataURI: '',
+    agentId: '4',
     acceptedToken: 'USDC',
-    reputationScore: 61,
-    jobCount: 449,
+    tags: ['defi', 'liquidity', 'byreal'],
+    reputationHistory: [],
+  },
+  {
+    id: '5',
+    name: 'mantle-tx-classifier',
+    version: 'v2.1.0',
+    tier: 'BASIC',
+    score: 76,
+    jobs: 312,
+    price: 0.02,
+    owner: '0xaB5a52C30D769A7Eae1474857A6180E71765CBAF',
+    description: 'Labels Mantle transactions by intent: swap, bridge, governance, MEV, transfer. Trained on ground truth from 2M labeled txs.',
+    registered: '2026-04-02',
+    isReal: false,
+    endpoint: '',
+    metadataURI: '',
+    agentId: '5',
+    acceptedToken: 'USDC',
+    tags: ['classification', 'mantle', 'transactions'],
+    reputationHistory: [],
+  },
+  {
+    id: '6',
+    name: 'allora-prompt-router',
+    version: 'v0.9.2',
+    tier: 'BASIC',
+    score: 82,
+    jobs: 198,
+    price: 0.08,
+    owner: '0x1d550b555B3a2e124ef611b55965848d6be233a2',
+    description: 'Routes a natural-language inference request to the cheapest Allora topic that satisfies it. Returns topic ID + expected accuracy.',
+    registered: '2026-04-18',
+    isReal: false,
+    endpoint: '',
+    metadataURI: '',
+    agentId: '6',
+    acceptedToken: 'USDC',
+    tags: ['allora', 'routing', 'inference'],
+    reputationHistory: [],
+  },
+  {
+    id: '7',
+    name: 'attestation-summarizer',
+    version: 'v0.2.0',
     tier: 'FREE',
-    agentId: '0x8004A818000000000000000000000000000000004',
-    description:
-      'Free multilingual translation service supporting 50+ languages. Community-maintained.',
-    tags: ['translation', 'nlp', 'multilingual'],
-    createdAt: '2026-04-01T00:00:00Z',
-    reputationHistory: Array.from({ length: 12 }, (_, i) => ({
-      timestamp: new Date(Date.now() - (11 - i) * 7 * 86400000).toISOString(),
-      score: 55 + Math.floor(Math.random() * 12),
-      jobId: `job-tr-${i}`,
-    })),
+    score: 41,
+    jobs: 28,
+    price: 0.00,
+    owner: '0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992',
+    description: 'Summarizes a chain of EAS attestations into human-readable provenance. Returns 200-word digest + confidence score.',
+    registered: '2026-05-08',
+    isReal: false,
+    endpoint: '',
+    metadataURI: '',
+    agentId: '7',
+    acceptedToken: 'USDC',
+    tags: ['attestation', 'eas', 'summarization'],
+    reputationHistory: [],
   },
 ]
 
 const MOCK_STATS: Stats = {
   totalSkills: 4,
-  totalJobsExecuted: 6459,
-  averageReputationScore: 79.75,
+  totalJobsExecuted: 1,
+  averageReputationScore: 90,
 }
 
-const MOCK_JOBS: Job[] = Array.from({ length: 10 }, (_, i) => ({
-  id: `job-mock-${i}`,
-  skillId: MOCK_SKILLS[i % MOCK_SKILLS.length].id,
-  skillName: MOCK_SKILLS[i % MOCK_SKILLS.length].name,
-  consumer: `0x${(i + 1).toString(16).padStart(40, '0')}`,
-  reputationScore: 70 + Math.floor(Math.random() * 30),
-  settlementTx: `0x${'ab'.repeat(32)}`,
-  timestamp: new Date(Date.now() - i * 90000).toISOString(),
-}))
-
-// ── API shape normalization ───────────────────────────────────────────────────
-// The indexer's SkillRecord uses different field names than the dashboard Skill
-// type. Normalize here so the rest of the app uses the canonical shape.
+const MOCK_JOBS: Job[] = [
+  {
+    id: 'job-1',
+    skillId: '1',
+    skillName: 'spawn-failure-analyst',
+    skillTier: 'PRO',
+    consumer: '0xC0296012Cfbb0e6DF5dA7158B65Dbc46DD9650e0',
+    score: 90,
+    settlementTx: '0x7f27c6562d6a8e3f4b1c9e8a47b2f31d6c50a8e9b1f3c2d4e5a6b7c8d9e0f1a2c656',
+    amount: '0.50',
+    timestamp: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+    confirmed: true,
+  },
+]
 
 interface RawSkillRecord {
   skillId: number
@@ -130,7 +189,7 @@ interface RawSkillRecord {
   registeredAt: number
   totalJobs: number
   averageScore: number
-  tier: 'FREE' | 'BASIC' | 'PRO'
+  tier: Tier
   tierPaidUntil?: number
   active?: boolean
 }
@@ -139,7 +198,6 @@ interface RawStatsResponse {
   totalSkills?: number
   totalJobs?: number
   avgReputationScore?: number
-  // allow through fields that already match the Stats type
   totalJobsExecuted?: number
   averageReputationScore?: number
 }
@@ -152,18 +210,18 @@ function normalizeSkill(raw: RawSkillRecord): Skill {
     endpoint: raw.endpoint,
     metadataURI: raw.metadataURI,
     owner: raw.owner,
-    pricePerCall: '0',
+    price: 0,
     acceptedToken: 'USDC',
-    reputationScore: raw.averageScore ?? 0,
-    jobCount: raw.totalJobs ?? 0,
+    score: raw.averageScore ?? 0,
+    jobs: raw.totalJobs ?? 0,
     tier: raw.tier ?? 'FREE',
     agentId: String(raw.erc8004AgentId ?? ''),
     description: '',
     tags: [],
-    createdAt:
-      raw.registeredAt
-        ? new Date(raw.registeredAt * 1000).toISOString()
-        : new Date().toISOString(),
+    registered: raw.registeredAt
+      ? new Date(raw.registeredAt * 1000).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10),
+    isReal: true,
     reputationHistory: [],
   }
 }
@@ -171,14 +229,10 @@ function normalizeSkill(raw: RawSkillRecord): Skill {
 function normalizeStats(raw: RawStatsResponse): Stats {
   return {
     totalSkills: raw.totalSkills ?? 0,
-    // indexer sends totalJobs; guard against both field names
     totalJobsExecuted: raw.totalJobsExecuted ?? raw.totalJobs ?? 0,
-    // indexer sends avgReputationScore; guard against both field names
     averageReputationScore: raw.averageReputationScore ?? raw.avgReputationScore ?? 0,
   }
 }
-
-// ── Fetch helpers ─────────────────────────────────────────────────────────────
 
 const API_BASE = process.env.NEXT_PUBLIC_BAZAAR_API ?? ''
 
@@ -189,8 +243,6 @@ async function apiFetch<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
-// ── Hook ─────────────────────────────────────────────────────────────────────
-
 export function useBazaarData() {
   const [skills, setSkills] = useState<Skill[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
@@ -200,7 +252,6 @@ export function useBazaarData() {
 
   const loadSkills = useCallback(async () => {
     try {
-      // Indexer wraps skills in { skills: [...], total: N }
       const raw = await apiFetch<{ skills?: RawSkillRecord[] } | RawSkillRecord[]>('/skills')
       const records: RawSkillRecord[] = Array.isArray(raw)
         ? raw
@@ -232,18 +283,16 @@ export function useBazaarData() {
   }, [])
 
   useEffect(() => {
-    Promise.all([loadSkills(), loadStats(), loadJobs()]).finally(() =>
-      setLoading(false)
-    )
+    Promise.all([loadSkills(), loadStats(), loadJobs()]).finally(() => setLoading(false))
 
-    const skillsInterval = setInterval(loadSkills, 15_000)
-    const statsInterval = setInterval(loadStats, 30_000)
-    const jobsInterval = setInterval(loadJobs, 15_000)
+    const si = setInterval(loadSkills, 15_000)
+    const ti = setInterval(loadStats, 30_000)
+    const ji = setInterval(loadJobs, 15_000)
 
     return () => {
-      clearInterval(skillsInterval)
-      clearInterval(statsInterval)
-      clearInterval(jobsInterval)
+      clearInterval(si)
+      clearInterval(ti)
+      clearInterval(ji)
     }
   }, [loadSkills, loadStats, loadJobs])
 
