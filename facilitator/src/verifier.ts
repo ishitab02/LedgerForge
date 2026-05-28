@@ -94,14 +94,19 @@ export async function verifyPaymentProof(
     validBefore: BigInt(auth.validBefore),
   };
 
-  const isValid = await publicClient.verifyTypedData({
-    address: auth.from,
-    domain,
-    types,
-    primaryType: "Payment",
-    message,
-    signature: proof.payload.signature,
-  });
+  let isValid = false;
+  try {
+    isValid = await publicClient.verifyTypedData({
+      address: auth.from,
+      domain,
+      types,
+      primaryType: "Payment",
+      message,
+      signature: proof.payload.signature,
+    });
+  } catch {
+    return { valid: false, error: "Invalid payment signature" };
+  }
 
   if (!isValid) {
     return { valid: false, error: "Invalid payment signature" };

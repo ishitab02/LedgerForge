@@ -38,9 +38,27 @@ export interface FacilitateRequest {
   paymentProof: X402PaymentProof;
 }
 
+export interface SettlementResult {
+  settlementTxHash: `0x${string}`;
+  pullTxHash: `0x${string}`;
+  createJobTxHash: `0x${string}`;
+  completeJobTxHash: `0x${string}`;
+  escrowJobId: string;
+  skillRegistryRepTxHash?: `0x${string}`;
+  erc8004FeedbackTxHash?: `0x${string}`;
+  reputationScore: number;
+}
+
 export interface FacilitateResponse {
   success: boolean;
   settlementTxHash?: `0x${string}`;
   accessToken?: string;
+  escrowJobId?: string;
+  pullTxHash?: `0x${string}`;
+  createJobTxHash?: `0x${string}`;
+  completeJobTxHash?: `0x${string}`;
+  skillRegistryRepTxHash?: `0x${string}`;
+  erc8004FeedbackTxHash?: `0x${string}`;
+  reputationScore?: number;
   error?: string;
 }

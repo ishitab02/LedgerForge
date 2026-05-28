@@ -106,16 +106,23 @@ app.post("/facilitate", async (req, res) => {
       return;
     }
 
-    const txHash = await settlePayment(body.paymentDetails, body.paymentProof);
+    const result = await settlePayment(body.paymentDetails, body.paymentProof);
 
     console.log(
-      `[Facilitator] Settled: ${txHash} | Skill: ${body.paymentDetails.skillId}`
+      `[Facilitator] Settled jobId=${result.escrowJobId} via escrow | tx=${result.settlementTxHash} | skill=${body.paymentDetails.skillId}`
     );
 
     res.json({
       success: true,
-      settlementTxHash: txHash,
-      accessToken: `settled:${txHash}:${Date.now()}`,
+      settlementTxHash: result.settlementTxHash,
+      accessToken: `settled:${result.settlementTxHash}:${Date.now()}`,
+      escrowJobId: result.escrowJobId,
+      pullTxHash: result.pullTxHash,
+      createJobTxHash: result.createJobTxHash,
+      completeJobTxHash: result.completeJobTxHash,
+      skillRegistryRepTxHash: result.skillRegistryRepTxHash,
+      erc8004FeedbackTxHash: result.erc8004FeedbackTxHash,
+      reputationScore: result.reputationScore,
     } as FacilitateResponse);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

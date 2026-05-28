@@ -29,6 +29,8 @@ export const SKILL_REGISTRY_ADDRESS =
   process.env.SKILL_REGISTRY_ADDRESS as `0x${string}`;
 export const X402_ESCROW_ADDRESS =
   process.env.X402_ESCROW_ADDRESS as `0x${string}`;
+export const ERC8004_REPUTATION_ADDRESS =
+  (process.env.ERC8004_REPUTATION_REGISTRY as `0x${string}` | undefined);
 export const FACILITATOR_FEE_BPS =
   parseInt(process.env.FACILITATOR_FEE_BPS ?? "20");
 export const PORT = parseInt(process.env.FACILITATOR_PORT ?? "3001");
