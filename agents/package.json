@@ -13,7 +13,9 @@
     "byreal-server": "node --env-file=../.env node_modules/.bin/tsx src/byreal-skills.ts --serve",
     "smoke-byreal": "node_modules/.bin/byreal-cli pools list --sort-field apr24h --page-size 3 -o json",
     "demo-consumer": "tsx src/demo-consumer.ts",
-    "simulate-clients": "node --env-file=../.env node_modules/.bin/tsx src/client-simulator.ts"
+    "simulate-clients": "node --env-file=../.env node_modules/.bin/tsx src/client-simulator.ts",
+    "scout": "node --env-file=../.env node_modules/.bin/tsx src/autonomous-scout.ts",
+    "scout:dry-run": "node --env-file=../.env node_modules/.bin/tsx src/autonomous-scout.ts --dry-run"
   },
   "dependencies": {
     "@byreal-io/byreal-cli-realclaw": "^0.4.5",
