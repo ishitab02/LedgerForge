@@ -155,6 +155,8 @@ const SOLANA_ADDR_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const COIN_RE = /^[A-Z0-9]{1,10}$/;
 const AMOUNT_RE = /^[0-9]+(\.[0-9]+)?$/;
 const SORT_FIELD_RE = /^[a-z0-9_]{1,20}$/;
+const EVM_ADDR_RE = /^0x[0-9a-fA-F]{40}$/;
+const DEFAULT_SOLANA_WALLET = "11111111111111111111111111111111";
 const LIMIT_RE = /^[0-9]{1,3}$/;
 
 function validated(value: string, pattern: RegExp, name: string): string {
@@ -189,6 +191,27 @@ function getTopPools(sortField: string, pageSize: string): unknown {
   return runCLI(REALCLAW_BIN, `pools list --sort-field ${field} --page-size ${size}`);
 }
 
+function exposeTopLevelPools(cliResult: unknown): unknown {
+  if (
+    typeof cliResult === "object" &&
+    cliResult !== null &&
+    "data" in cliResult &&
+    typeof cliResult.data === "object" &&
+    cliResult.data !== null &&
+    "pools" in cliResult.data
+  ) {
+    const pools = Array.isArray(cliResult.data.pools)
+      ? cliResult.data.pools.map((pool) => {
+          if (typeof pool !== "object" || pool === null || !("id" in pool)) return pool;
+          const id = String(pool.id);
+          return { ...pool, address: id, poolAddress: id };
+        })
+      : cliResult.data.pools;
+    return { ...cliResult, pools };
+  }
+  return cliResult;
+}
+
 function getSwapPreview(
   walletAddress: string,
   inputMint: string,
@@ -196,7 +219,9 @@ function getSwapPreview(
   amount: string,
   slippage: string,
 ): unknown {
-  const wallet = validated(walletAddress, SOLANA_ADDR_RE, "walletAddress");
+  const wallet = EVM_ADDR_RE.test(walletAddress)
+    ? DEFAULT_SOLANA_WALLET
+    : validated(walletAddress, SOLANA_ADDR_RE, "walletAddress");
   const inMint = validated(inputMint, SOLANA_ADDR_RE, "inputMint");
   const outMint = validated(outputMint, SOLANA_ADDR_RE, "outputMint");
   const amt = validated(amount, AMOUNT_RE, "amount");
@@ -286,23 +311,34 @@ export function startByrealSkillServer(): void {
           json(res, 400, { error: "poolAddress query param required" });
           return;
         }
-        json(res, 200, {
-          success: true,
-          skill: "byreal-pool-analysis",
-          data: getPoolAnalysis(poolAddress),
-          executedAt: Date.now(),
-          note: "Pool analysis via Byreal RealClaw on Solana CLMM",
-        });
+        try {
+          json(res, 200, {
+            success: true,
+            skill: "byreal-pool-analysis",
+            data: getPoolAnalysis(poolAddress),
+            executedAt: Date.now(),
+            note: "Pool analysis via Byreal RealClaw on Solana CLMM",
+          });
+        } catch (poolErr) {
+          const msg = poolErr instanceof Error ? poolErr.message : String(poolErr);
+          const lower = msg.toLowerCase();
+          const status = lower.includes("invalid") || lower.includes("not found") ? 400 : 500;
+          json(res, status, {
+            error: msg,
+            hint: "Use a valid Solana CLMM pool address, e.g. from /byreal/top-pools",
+          });
+        }
         return;
       }
 
       if (url.pathname === "/byreal/top-pools") {
         const sortField = url.searchParams.get("sortField") ?? "apr24h";
         const pageSize = url.searchParams.get("pageSize") ?? "10";
+        const topPools = getTopPools(sortField, pageSize);
         json(res, 200, {
           success: true,
           skill: "byreal-top-pools",
-          data: getTopPools(sortField, pageSize),
+          data: exposeTopLevelPools(topPools),
           executedAt: Date.now(),
           note: "Top CLMM pools by APR via Byreal RealClaw",
         });
@@ -310,15 +346,31 @@ export function startByrealSkillServer(): void {
       }
 
       if (url.pathname === "/byreal/swap-preview") {
-        if (req.method !== "POST") {
-          json(res, 405, { error: "POST required" });
-          return;
+        let walletAddress: string | undefined;
+        let inputMint: string | undefined;
+        let outputMint: string | undefined;
+        let amount: string | undefined;
+        let slippage = "0.5";
+
+        if (req.method === "POST") {
+          const body = (await readBody(req)) as Record<string, string>;
+          walletAddress = body.walletAddress;
+          inputMint = body.inputMint;
+          outputMint = body.outputMint;
+          amount = body.amount;
+          if (body.slippage) slippage = body.slippage;
+        } else {
+          walletAddress = url.searchParams.get("walletAddress") ?? undefined;
+          inputMint = url.searchParams.get("inputMint") ?? undefined;
+          outputMint = url.searchParams.get("outputMint") ?? undefined;
+          amount = url.searchParams.get("amount") ?? undefined;
+          slippage = url.searchParams.get("slippage") ?? "0.5";
         }
-        const body = (await readBody(req)) as Record<string, string>;
-        const { walletAddress, inputMint, outputMint, amount, slippage = "0.5" } = body;
+
         if (!walletAddress || !inputMint || !outputMint || !amount) {
           json(res, 400, {
-            error: "Required body fields: walletAddress, inputMint, outputMint, amount",
+            error: "Required fields: walletAddress, inputMint, outputMint, amount",
+            hint: "Send as GET query params or POST JSON body",
           });
           return;
         }

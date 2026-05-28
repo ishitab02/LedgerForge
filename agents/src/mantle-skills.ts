@@ -288,6 +288,7 @@ async function getMantleTvl() {
   return {
     chain: "Mantle",
     tvl: mantle?.tvl ?? null,
+    totalTvl: mantle?.tvl ?? null,
     change1d: mantle?.change_1d ?? null,
     change7d: mantle?.change_7d ?? null,
     topProtocols,
@@ -318,7 +319,9 @@ async function getAaveV3Rates(asset: "USDe" | "USDC" | "all") {
         symbol,
         address,
         supplyApr: rayToApr(data.currentLiquidityRate),
+        supplyAPR: rayToApr(data.currentLiquidityRate),
         variableBorrowApr: rayToApr(data.currentVariableBorrowRate),
+        borrowAPR: rayToApr(data.currentVariableBorrowRate),
         lastUpdated: new Date(Number(data.lastUpdateTimestamp) * 1000).toISOString(),
       };
     }),

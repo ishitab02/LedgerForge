@@ -156,12 +156,55 @@ async function readSpawnLineage(lineageKey: string, generation?: string): Promis
   const url = new URL(`/api/lineage/${encodeURIComponent(lineageKey)}`, spawnApiUrl);
   if (generation) url.searchParams.set("generation", generation);
 
-  const response = await fetch(url);
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Upstream Spawn API unavailable: ${message}`);
+  }
   if (!response.ok) {
-    throw new Error(`Spawn API returned ${response.status}: ${await response.text()}`);
+    throw new Error(`Upstream Spawn API unavailable: ${response.status}: ${await response.text()}`);
   }
 
   return response.json();
+}
+
+function demoSpawnFailureAnalysis(lineageKey: string) {
+  return {
+    lineageKey,
+    postMortems: [
+      {
+        generation: 1,
+        strategy: "aggressive-rebalance",
+        terminationReason: "slippage exceeded 3%",
+        lessons: ["Use tighter slippage bounds on low-liquidity pools"],
+      },
+      {
+        generation: 2,
+        strategy: "passive-hold",
+        terminationReason: "opportunity cost too high",
+        lessons: ["Dynamic rebalancing outperforms passive hold in volatile conditions"],
+      },
+    ],
+    source: "demo",
+    note: "Spawn Protocol upstream unavailable - returning demo lineage data",
+  };
+}
+
+function demoSpawnLineageContext(lineageKey: string) {
+  return {
+    lineageKey,
+    context: [
+      "<spawn_lineage_context>",
+      `lineage_key: ${lineageKey}`,
+      "instruction: Inherit useful failure constraints from this Spawn Protocol lineage.",
+      "ancestor_post_mortems:",
+      JSON.stringify([{ generation: 1, lessons: ["Avoid unbounded slippage"] }]),
+      "</spawn_lineage_context>",
+    ].join("\n"),
+    source: "demo",
+  };
 }
 
 function formatVeniceContext(lineageKey: string, lineage: unknown): string {
@@ -340,7 +383,12 @@ export function startSpawnSkillServer(): void {
           return;
         }
 
-        const postMortem = await readSpawnLineage(lineageKey, generation);
+        let postMortem: unknown;
+        try {
+          postMortem = await readSpawnLineage(lineageKey, generation);
+        } catch {
+          postMortem = demoSpawnFailureAnalysis(lineageKey);
+        }
         json(res, 200, postMortem);
         return;
       }
@@ -352,7 +400,13 @@ export function startSpawnSkillServer(): void {
           return;
         }
 
-        const lineage = await readSpawnLineage(lineageKey);
+        let lineage: unknown;
+        try {
+          lineage = await readSpawnLineage(lineageKey);
+        } catch {
+          json(res, 200, demoSpawnLineageContext(lineageKey));
+          return;
+        }
         json(res, 200, {
           lineageKey,
           context: formatVeniceContext(lineageKey, lineage),
@@ -367,8 +421,16 @@ export function startSpawnSkillServer(): void {
           json(res, 400, { error: "contractAddress and decisionHash are required" });
           return;
         }
+        const hexBody = decisionHash.startsWith("0x") ? decisionHash.slice(2) : decisionHash;
+        if (hexBody.length !== 64 || !/^[0-9a-fA-F]+$/.test(hexBody)) {
+          json(res, 400, {
+            error: "decisionHash must be a 32-byte hex string (0x + 64 hex chars)",
+          });
+          return;
+        }
+        const normalizedHash = (`0x${hexBody}`) as Hex;
 
-        const result = await verifyDecisionHash(getAddress(contractAddress), decisionHash as Hex);
+        const result = await verifyDecisionHash(getAddress(contractAddress), normalizedHash);
         json(res, 200, result);
         return;
       }
@@ -376,7 +438,14 @@ export function startSpawnSkillServer(): void {
       json(res, 404, { error: "Unknown Spawn skill endpoint" });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      json(res, 500, { error: message });
+      const isSpawnUpstreamError = message.includes("Upstream Spawn API unavailable");
+      json(
+        res,
+        isSpawnUpstreamError ? 502 : 500,
+        isSpawnUpstreamError
+          ? { error: "Upstream Spawn API unavailable", fallback: true }
+          : { error: message },
+      );
     }
   });
 
