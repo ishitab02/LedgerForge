@@ -289,6 +289,24 @@ function buildDigest(args: {
     lines.push("");
     lines.push(`**Total spent:** ${totalUSDC} USDC (${args.settlements.length} settlements × ${formatUnits(BigInt(PRICE_PER_CALL), 6)} USDC)`);
     lines.push("");
+
+    const repSettlements = args.settlements.filter(s => s.skillRegistryRepTx || s.erc8004FeedbackTx);
+    if (repSettlements.length > 0) {
+      lines.push("### Reputation writes (per settlement)");
+      lines.push("");
+      lines.push("| # | Skill | SkillRegistry rep tx | ERC-8004 feedback tx |");
+      lines.push("|---|---|---|---|");
+      repSettlements.forEach((s, i) => {
+        const repTx = s.skillRegistryRepTx
+          ? `[\`${s.skillRegistryRepTx.slice(0, 12)}…\`](https://mantlescan.xyz/tx/${s.skillRegistryRepTx})`
+          : "`n/a`";
+        const erc8004Tx = s.erc8004FeedbackTx
+          ? `[\`${s.erc8004FeedbackTx.slice(0, 12)}…\`](https://mantlescan.xyz/tx/${s.erc8004FeedbackTx})`
+          : "`n/a`";
+        lines.push(`| ${i + 1} | ${s.name} (#${s.skillId}) | ${repTx} | ${erc8004Tx} |`);
+      });
+      lines.push("");
+    }
   }
 
   if (args.swapPreview !== null && args.swapPreview !== undefined) {

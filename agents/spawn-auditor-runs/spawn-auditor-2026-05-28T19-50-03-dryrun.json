@@ -1,0 +1,47 @@
+{
+  "startedAt": "2026-05-28T19:50:03.821Z",
+  "finishedAt": "2026-05-28T19:50:04.071Z",
+  "dryRun": true,
+  "consumer": "0xC0296012Cfbb0e6DF5dA7158B65Dbc46DD9650e0",
+  "provider": "0x5c4AebED46EeFbD3856f6D37Db11E77a46893877",
+  "providerSource": "ephemeral",
+  "pricePerCall": "50000",
+  "settlements": [],
+  "failures": [],
+  "config": {
+    "pricePerCall": "50000",
+    "minBalance": "500000",
+    "lineageKey": "agent-demo-lineage",
+    "generation": "2",
+    "contractAddress": "0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992",
+    "decisionHash": "0xdeadbeefdead..."
+  },
+  "skills": {
+    "failureAnalyst": 1,
+    "lineageContext": 2,
+    "decisionVerifier": 3
+  },
+  "decision": {
+    "verdict": "NEEDS_REVIEW",
+    "confidence": 45,
+    "rationale": "Audit inputs were incomplete because one or more paid skills failed or returned no verifier field.",
+    "remediations": [
+      "Check partial-run failures in this digest.",
+      "Re-run once the affected Spawn skill endpoint is healthy."
+    ],
+    "verified": null,
+    "contextChars": 0,
+    "postMortemCount": 0
+  },
+  "raw": {
+    "failureAnalysis": {
+      "dryRun": true
+    },
+    "lineageContext": {
+      "dryRun": true
+    },
+    "verifier": {
+      "dryRun": true
+    }
+  }
+}

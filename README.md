@@ -106,7 +106,7 @@ The LedgerForge Scout agent (`npm run scout`) ran live on Mantle Mainnet, paying
 
 Each row = 5 Mantle txs (pull → createJob → completeJob → SkillRegistry rep → ERC-8004 feedback). One agent run = **25 on-chain transactions**.
 
-Current stats: **15 skills registered · 15 jobs settled · 0.75 USDC total revenue**
+Current stats: **15 skills registered · 35+ jobs settled · ~1.80 USDC total revenue** _(as of 2026-05-29; live numbers at [`/stats`](https://ledgerforge-indexer.fly.dev/stats))_
 
 ---
 
@@ -153,13 +153,30 @@ console.log(result.settlementTxHash) // on-chain proof
 
 ### Run the autonomous DeFi scout agent
 
+This is the headline demo: a real autonomous agent that **spends real USDC on Mantle mainnet** to discover an opportunity and produce an investment recommendation, leaving an end-to-end on-chain audit trail.
+
 ```bash
 cd agents
 npm run scout           # live: pays ~0.25 USDC, fires 25 Mantle txs, writes a digest
 npm run scout:dry-run   # free simulation, no on-chain settlements
 ```
 
-The scout fetches live market data from 4–5 paid skills, compares Byreal pool APR vs Aave USDC supply rate, and writes a markdown digest to `agents/scout-runs/` with every settlement tx hash.
+**What it does in ~2 minutes:**
+
+1. Calls `byreal-top-pools` (paid) → top Byreal CLMM pools by 24h APR
+2. Calls `aave-v3-rates` (paid) → Aave V3 USDC supply APY on Mantle
+3. Calls `token-price-feed` (paid) → live USDC/USDe stablecoin prices
+4. Calls `mantle-gas-oracle` (paid) → current swap gas cost in USD
+5. **Decides**: if (top pool APR − Aave supply APY) > 5pp and gas < $1 → ENTER_POOL
+6. If ENTER_POOL: calls `byreal-swap-preview` (paid) → models the rotation, captures price impact
+
+**What you get:**
+
+- Live console: `✓ #6 byreal-top-pools  jobId=11  0xe7656e52fe…`
+- A markdown digest in `agents/scout-runs/` — TL;DR + decision + every settlement tx link, formatted for screenshots
+- 25 mainnet transactions (5 skills × 5 txs each: pull → createJob → completeJob → SkillRegistry rep → ERC-8004 feedback) — each one provable on [mantlescan.xyz](https://mantlescan.xyz)
+
+**Configure thresholds** via env vars: `SCOUT_PRICE_PER_CALL`, `SCOUT_MIN_APR_DELTA_PCT`, `SCOUT_MAX_GAS_USD`. Defaults in [`agents/src/autonomous-scout.ts`](agents/src/autonomous-scout.ts).
 
 ### Run the multi-agent client simulator
 

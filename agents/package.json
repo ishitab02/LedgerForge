@@ -15,11 +15,17 @@
     "demo-consumer": "tsx src/demo-consumer.ts",
     "simulate-clients": "node --env-file=../.env node_modules/.bin/tsx src/client-simulator.ts",
     "scout": "node --env-file=../.env node_modules/.bin/tsx src/autonomous-scout.ts",
-    "scout:dry-run": "node --env-file=../.env node_modules/.bin/tsx src/autonomous-scout.ts --dry-run"
+    "scout:dry-run": "node --env-file=../.env node_modules/.bin/tsx src/autonomous-scout.ts --dry-run",
+    "perps-coach": "node --env-file=../.env node_modules/.bin/tsx src/perps-coach.ts",
+    "perps-coach:dry-run": "node --env-file=../.env node_modules/.bin/tsx src/perps-coach.ts --dry-run",
+    "spawn-auditor": "node --env-file=../.env node_modules/.bin/tsx src/spawn-auditor.ts",
+    "spawn-auditor:dry-run": "node --env-file=../.env node_modules/.bin/tsx src/spawn-auditor.ts --dry-run",
+    "demos:dry-run": "npm run scout:dry-run && npm run perps-coach:dry-run && npm run spawn-auditor:dry-run"
   },
   "dependencies": {
     "@byreal-io/byreal-cli-realclaw": "^0.4.5",
     "@byreal-io/byreal-perps-cli": "^0.3.7",
+    "@ledgerforge/x402-mantle": "^0.1.0",
     "dotenv": "^16.4.5",
     "viem": "^2.21.0"
   },

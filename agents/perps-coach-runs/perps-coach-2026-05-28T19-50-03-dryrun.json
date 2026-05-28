@@ -1,0 +1,82 @@
+{
+  "startedAt": "2026-05-28T19:50:03.823Z",
+  "finishedAt": "2026-05-28T19:50:04.291Z",
+  "dryRun": true,
+  "consumer": "0xC0296012Cfbb0e6DF5dA7158B65Dbc46DD9650e0",
+  "provider": "0xe228756836db3DC432F76CA67935c62F5ed015C9",
+  "providerSource": "ephemeral",
+  "pricePerCall": "50000",
+  "settlements": [],
+  "failures": [],
+  "config": {
+    "pricePerCall": "50000",
+    "minBalance": "500000",
+    "positions": [
+      {
+        "coin": "BTC",
+        "side": "LONG"
+      },
+      {
+        "coin": "ETH",
+        "side": "LONG"
+      },
+      {
+        "coin": "SOL",
+        "side": "LONG"
+      }
+    ]
+  },
+  "skills": {
+    "perpsSignals": 8,
+    "tokenPrices": 14,
+    "gasOracle": 13
+  },
+  "decisions": [
+    {
+      "coin": "BTC",
+      "side": "LONG",
+      "action": "HOLD",
+      "confidence": 35,
+      "rationale": "Dry-run or missing signal; no live risk change observed.",
+      "bullishSignals": 0,
+      "bearishSignals": 0
+    },
+    {
+      "coin": "ETH",
+      "side": "LONG",
+      "action": "HOLD",
+      "confidence": 35,
+      "rationale": "Dry-run or missing signal; no live risk change observed.",
+      "bullishSignals": 0,
+      "bearishSignals": 0
+    },
+    {
+      "coin": "SOL",
+      "side": "LONG",
+      "action": "HOLD",
+      "confidence": 35,
+      "rationale": "Dry-run or missing signal; no live risk change observed.",
+      "bullishSignals": 0,
+      "bearishSignals": 0
+    }
+  ],
+  "context": {
+    "signals": {
+      "BTC": {
+        "dryRun": true
+      },
+      "ETH": {
+        "dryRun": true
+      },
+      "SOL": {
+        "dryRun": true
+      }
+    },
+    "prices": {
+      "dryRun": true
+    },
+    "gas": {
+      "dryRun": true
+    }
+  }
+}
