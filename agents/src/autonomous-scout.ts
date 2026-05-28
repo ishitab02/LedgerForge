@@ -262,18 +262,10 @@ async function main(): Promise<void> {
   const ready = await runtime.preflight(6);
   if (ready) {
     log("");
-    log("scan market (3 paid skills, parallel)");
-    [topPools, aaveRates, prices] = await Promise.all([
-      runtime.pay<unknown>("market scan: byreal top pools", SKILLS.topPools, {
-        query: { sortField: "apr24h", pageSize: "3" },
-      }),
-      runtime.pay<unknown>("market scan: aave rates", SKILLS.aaveRates, {
-        query: { asset: "USDC" },
-      }),
-      runtime.pay<unknown>("market scan: token prices", SKILLS.tokenPrices, {
-        query: { tokens: "USDC,USDe" },
-      }),
-    ]);
+    log("scan market (3 paid skills, sequenced)");
+    topPools = await runtime.pay<unknown>("market scan: byreal top pools", SKILLS.topPools, { query: { sortField: "apr24h", pageSize: "3" } });
+    aaveRates = await runtime.pay<unknown>("market scan: aave rates", SKILLS.aaveRates, { query: { asset: "USDC" } });
+    prices = await runtime.pay<unknown>("market scan: token prices", SKILLS.tokenPrices, { query: { tokens: "USDC,USDe" } });
 
     log("");
     log("gas estimate (1 paid skill)");
