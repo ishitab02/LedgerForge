@@ -64,6 +64,20 @@ export interface SettlementReceipt {
   settlementTxHash: Hex;
   accessToken: string;
   explorerUrl: string;
+  /** x402Escrow JobId from the on-chain JobCreated event */
+  escrowJobId?: string;
+  /** Tx that pulled funds from consumer → operator */
+  pullTxHash?: Hex;
+  /** Tx that created the escrow job (custody) */
+  createJobTxHash?: Hex;
+  /** Tx that completed the escrow job (provider paid) */
+  completeJobTxHash?: Hex;
+  /** Tx that incremented SkillRegistry reputation (if successful) */
+  skillRegistryRepTxHash?: Hex;
+  /** Tx that wrote ERC-8004 canonical feedback (if successful) */
+  erc8004FeedbackTxHash?: Hex;
+  /** Score (0-100) written to reputation registries */
+  reputationScore?: number;
 }
 
 export interface InvokeResult<T = unknown> {

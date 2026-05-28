@@ -256,6 +256,13 @@ export class LedgerForgeClient {
       success: boolean;
       settlementTxHash?: Hex;
       accessToken?: string;
+      escrowJobId?: string;
+      pullTxHash?: Hex;
+      createJobTxHash?: Hex;
+      completeJobTxHash?: Hex;
+      skillRegistryRepTxHash?: Hex;
+      erc8004FeedbackTxHash?: Hex;
+      reputationScore?: number;
       error?: string;
     };
 
@@ -271,6 +278,13 @@ export class LedgerForgeClient {
       settlementTxHash: body.settlementTxHash,
       accessToken: body.accessToken,
       explorerUrl: explorerTxUrl(body.settlementTxHash, this.explorerUrl),
+      escrowJobId: body.escrowJobId,
+      pullTxHash: body.pullTxHash,
+      createJobTxHash: body.createJobTxHash,
+      completeJobTxHash: body.completeJobTxHash,
+      skillRegistryRepTxHash: body.skillRegistryRepTxHash,
+      erc8004FeedbackTxHash: body.erc8004FeedbackTxHash,
+      reputationScore: body.reputationScore,
     };
   }
 
