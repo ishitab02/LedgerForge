@@ -198,8 +198,8 @@ npm run simulate-clients   # five personas, infinite loop, round scorecard
 ### Local development
 
 ```bash
-git clone https://github.com/PoulavBhowmick03/ledgerforge
-cd ledgerforge
+git clone https://github.com/ishitab02/LedgerForge
+cd LedgerForge
 cp .env.example .env
 # Fill OPERATOR_PRIVATE_KEY and CONSUMER_PRIVATE_KEY; contracts are already deployed
 
@@ -247,5 +247,4 @@ See [AGENTS.md](./AGENTS.md) for the full runbook, Makefile targets, and known g
 
 | Name | Role |
 |---|---|
-| **Poulav Bhowmick** | Smart contracts, facilitator server, SDK |
-| **Ishita** | Dashboard, agent integrations, design |
+| **Ishita Bhattacharyya** | Smart contracts, facilitator server, SDK, dashboard, agent integrations, design |

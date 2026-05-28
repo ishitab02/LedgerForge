@@ -173,8 +173,8 @@ import {
 The repo ships a runnable quickstart:
 
 ```bash
-git clone https://github.com/PoulavBhowmick03/ledgerforge
-cd ledgerforge/sdk
+git clone https://github.com/ishitab02/LedgerForge
+cd LedgerForge/sdk
 npm install
 npm run example
 ```
