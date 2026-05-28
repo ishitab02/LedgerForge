@@ -1,9 +1,11 @@
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import {
+  decodeEventLog,
   formatUnits,
   getAddress,
   isAddress,
   parseAbiItem,
+  type Hex,
   type Log,
 } from "viem";
 import { publicClient } from "./config.js";
@@ -11,12 +13,15 @@ import { loadDb, type BazaarTier, type SkillRecord } from "./db.js";
 
 export interface JobRecord {
   id: string;
+  jobId: string;
   skillId: string;
   skillName: string;
   skillTier: BazaarTier;
   consumer: string;
   score: number;
   settlementTx: string;
+  createJobTx: string;
+  completeJobTx: string;
   amount: string;
   feeAmount: string;
   token: "USDC" | "USDe";
@@ -28,33 +33,55 @@ export interface JobRecord {
 
 const JOBS_DB_PATH = process.env.JOBS_DB_PATH ?? "./jobs_db.json";
 
-// ERC-20 Transfer event
-const TRANSFER_EVENT = parseAbiItem(
-  "event Transfer(address indexed from, address indexed to, uint256 value)",
+const JOB_CREATED_EVENT = parseAbiItem(
+  "event JobCreated(uint256 indexed jobId, address indexed consumer, address indexed provider, uint256 skillId, uint256 amount, address token)",
+);
+const JOB_COMPLETED_EVENT = parseAbiItem(
+  "event JobCompleted(uint256 indexed jobId, uint256 paidToProvider, uint256 fee)",
 );
 
-interface TokenSpec {
-  address: `0x${string}`;
-  symbol: "USDC" | "USDe";
-  decimals: number;
-}
+const ESCROW_JOB_GETTER_ABI = [
+  {
+    name: "getJob",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: [{
+      type: "tuple",
+      components: [
+        { name: "jobId",              type: "uint256" },
+        { name: "consumer",           type: "address" },
+        { name: "provider",           type: "address" },
+        { name: "token",              type: "address" },
+        { name: "amount",             type: "uint256" },
+        { name: "skillId",            type: "uint256" },
+        { name: "jobSpecURI",         type: "string"  },
+        { name: "status",             type: "uint8"   },
+        { name: "createdAt",          type: "uint256" },
+        { name: "completedAt",        type: "uint256" },
+        { name: "disputeWindow",      type: "uint256" },
+        { name: "facilitatorFeeBps", type: "uint256" },
+      ],
+    }],
+  },
+] as const;
 
-function getTokens(): TokenSpec[] {
-  const tokens: TokenSpec[] = [];
+const KNOWN_TOKENS: Record<string, { symbol: "USDC" | "USDe"; decimals: number }> = {};
+function ingestTokens(): void {
   const usdc = process.env.USDC_ADDRESS;
   const usde = process.env.USDE_ADDRESS;
-  if (usdc && isAddress(usdc)) {
-    tokens.push({ address: usdc as `0x${string}`, symbol: "USDC", decimals: 6 });
-  }
-  if (usde && isAddress(usde)) {
-    tokens.push({ address: usde as `0x${string}`, symbol: "USDe", decimals: 18 });
-  }
-  return tokens;
+  if (usdc && isAddress(usdc)) KNOWN_TOKENS[usdc.toLowerCase()] = { symbol: "USDC", decimals: 6 };
+  if (usde && isAddress(usde)) KNOWN_TOKENS[usde.toLowerCase()] = { symbol: "USDe", decimals: 18 };
+}
+ingestTokens();
+
+function tokenInfo(addr: string): { symbol: "USDC" | "USDe"; decimals: number } | null {
+  return KNOWN_TOKENS[addr.toLowerCase()] ?? null;
 }
 
-function getOperator(): `0x${string}` | null {
-  const op = process.env.OPERATOR_ADDRESS;
-  if (op && isAddress(op)) return op as `0x${string}`;
+function getEscrowAddress(): `0x${string}` | null {
+  const a = process.env.X402_ESCROW_ADDRESS;
+  if (a && isAddress(a)) return a as `0x${string}`;
   return null;
 }
 
@@ -71,61 +98,39 @@ export function saveJobsDb(jobs: JobRecord[]): void {
   writeFileSync(JOBS_DB_PATH, JSON.stringify(jobs, null, 2));
 }
 
-function findSkillByProvider(
-  providerAddress: string,
+function findSkill(
+  skillId: bigint,
+  provider: string,
   skills: Record<number, SkillRecord>,
 ): SkillRecord | null {
-  const target = providerAddress.toLowerCase();
-  // Pick the most-recently-registered active skill owned by this address
+  const byId = skills[Number(skillId)];
+  if (byId) return byId;
+  // Fallback: most recent active skill for this provider
   const matches = Object.values(skills).filter(
-    (s) => s.owner.toLowerCase() === target,
+    (s) => s.owner.toLowerCase() === provider.toLowerCase(),
   );
   if (matches.length === 0) return null;
   matches.sort((a, b) => b.registeredAt - a.registeredAt);
   return matches[0];
 }
 
-type TransferLog = Log<bigint, number, false, typeof TRANSFER_EVENT, true>;
-
-interface TransferDetails {
-  txHash: `0x${string}`;
-  blockNumber: bigint;
-  logIndex: number;
-  from: `0x${string}`;
-  to: `0x${string}`;
-  value: bigint;
-  token: TokenSpec;
+const CONSUMER_FROM_URI_RE = /\/consumer\/(0x[0-9a-fA-F]{40})\//;
+function parseConsumerFromURI(uri: string): string | null {
+  const m = uri.match(CONSUMER_FROM_URI_RE);
+  return m ? m[1] : null;
 }
 
-function logToTransfer(log: TransferLog, token: TokenSpec): TransferDetails | null {
-  const args = log.args;
-  if (!args.from || !args.to || args.value === undefined) return null;
-  if (!log.transactionHash || log.blockNumber === null || log.logIndex === null) {
-    return null;
-  }
-  return {
-    txHash: log.transactionHash,
-    blockNumber: log.blockNumber,
-    logIndex: log.logIndex,
-    from: args.from,
-    to: args.to,
-    value: args.value,
-    token,
-  };
-}
-
-const BLOCK_LOOKBACK = BigInt(process.env.JOBS_BLOCK_LOOKBACK ?? "10000");
+const BLOCK_LOOKBACK = BigInt(process.env.JOBS_BLOCK_LOOKBACK ?? "20000");
 const MAX_BLOCK_RANGE_PER_CALL = BigInt(
   process.env.JOBS_MAX_RANGE_PER_CALL ?? "2000",
 );
 
-async function fetchOperatorTransfers(
-  token: TokenSpec,
-  operator: `0x${string}`,
+async function fetchEscrowJobCreated(
+  escrow: `0x${string}`,
   fromBlock: bigint,
   toBlock: bigint,
-): Promise<TransferDetails[]> {
-  const results: TransferDetails[] = [];
+): Promise<Log[]> {
+  const out: Log[] = [];
   let cursor = fromBlock;
   while (cursor <= toBlock) {
     const end =
@@ -133,55 +138,50 @@ async function fetchOperatorTransfers(
         ? toBlock
         : cursor + MAX_BLOCK_RANGE_PER_CALL - 1n;
     try {
-      const logs = (await publicClient.getLogs({
-        address: token.address,
-        event: TRANSFER_EVENT,
-        args: { to: operator },
+      const logs = await publicClient.getLogs({
+        address: escrow,
+        event: JOB_CREATED_EVENT,
         fromBlock: cursor,
         toBlock: end,
-      })) as TransferLog[];
-      for (const log of logs) {
-        const t = logToTransfer(log, token);
-        if (t) results.push(t);
-      }
+      });
+      out.push(...(logs as Log[]));
     } catch (err) {
-      console.warn(
-        `[Jobs] getLogs failed for ${token.symbol} ${cursor}-${end}:`,
-        (err as Error).message,
-      );
+      console.warn(`[Jobs] JobCreated getLogs ${cursor}-${end}:`, (err as Error).message);
     }
     cursor = end + 1n;
   }
-  return results;
+  return out;
 }
 
-async function fetchAllTokenTransfersInTx(
-  token: TokenSpec,
-  txHash: `0x${string}`,
-  blockNumber: bigint,
-): Promise<TransferDetails[]> {
-  try {
-    const logs = (await publicClient.getLogs({
-      address: token.address,
-      event: TRANSFER_EVENT,
-      fromBlock: blockNumber,
-      toBlock: blockNumber,
-    })) as TransferLog[];
-    return logs
-      .filter((l) => l.transactionHash === txHash)
-      .map((l) => logToTransfer(l, token))
-      .filter((t): t is TransferDetails => t !== null);
-  } catch (err) {
-    console.warn(
-      `[Jobs] tx-scope getLogs failed for ${token.symbol} block ${blockNumber}:`,
-      (err as Error).message,
-    );
-    return [];
+async function fetchEscrowJobCompleted(
+  escrow: `0x${string}`,
+  fromBlock: bigint,
+  toBlock: bigint,
+): Promise<Log[]> {
+  const out: Log[] = [];
+  let cursor = fromBlock;
+  while (cursor <= toBlock) {
+    const end =
+      cursor + MAX_BLOCK_RANGE_PER_CALL - 1n > toBlock
+        ? toBlock
+        : cursor + MAX_BLOCK_RANGE_PER_CALL - 1n;
+    try {
+      const logs = await publicClient.getLogs({
+        address: escrow,
+        event: JOB_COMPLETED_EVENT,
+        fromBlock: cursor,
+        toBlock: end,
+      });
+      out.push(...(logs as Log[]));
+    } catch (err) {
+      console.warn(`[Jobs] JobCompleted getLogs ${cursor}-${end}:`, (err as Error).message);
+    }
+    cursor = end + 1n;
   }
+  return out;
 }
 
 const blockTimestampCache = new Map<string, number>();
-
 async function getBlockTimestamp(blockNumber: bigint): Promise<number> {
   const key = blockNumber.toString();
   const cached = blockTimestampCache.get(key);
@@ -196,87 +196,147 @@ async function getBlockTimestamp(blockNumber: bigint): Promise<number> {
   }
 }
 
+interface JobCreatedDecoded {
+  jobId: bigint;
+  consumer: `0x${string}`;
+  provider: `0x${string}`;
+  skillId: bigint;
+  amount: bigint;
+  token: `0x${string}`;
+  txHash: `0x${string}`;
+  blockNumber: bigint;
+}
+
+interface JobCompletedDecoded {
+  jobId: bigint;
+  paidToProvider: bigint;
+  fee: bigint;
+  txHash: `0x${string}`;
+  blockNumber: bigint;
+}
+
+function decodeJobCreated(log: Log): JobCreatedDecoded | null {
+  try {
+    const d = decodeEventLog({ abi: [JOB_CREATED_EVENT], data: log.data, topics: log.topics });
+    if (d.eventName !== "JobCreated" || !log.transactionHash || log.blockNumber === null) return null;
+    const a = d.args as unknown as {
+      jobId: bigint; consumer: `0x${string}`; provider: `0x${string}`;
+      skillId: bigint; amount: bigint; token: `0x${string}`;
+    };
+    return {
+      jobId: a.jobId, consumer: a.consumer, provider: a.provider,
+      skillId: a.skillId, amount: a.amount, token: a.token,
+      txHash: log.transactionHash, blockNumber: log.blockNumber,
+    };
+  } catch { return null; }
+}
+
+function decodeJobCompleted(log: Log): JobCompletedDecoded | null {
+  try {
+    const d = decodeEventLog({ abi: [JOB_COMPLETED_EVENT], data: log.data, topics: log.topics });
+    if (d.eventName !== "JobCompleted" || !log.transactionHash || log.blockNumber === null) return null;
+    const a = d.args as unknown as { jobId: bigint; paidToProvider: bigint; fee: bigint };
+    return {
+      jobId: a.jobId, paidToProvider: a.paidToProvider, fee: a.fee,
+      txHash: log.transactionHash, blockNumber: log.blockNumber,
+    };
+  } catch { return null; }
+}
+
 export async function scanJobs(): Promise<JobRecord[]> {
-  const operator = getOperator();
-  const tokens = getTokens();
-  if (!operator || tokens.length === 0) {
+  const escrow = getEscrowAddress();
+  if (!escrow) {
     return [];
   }
 
   const latestBlock = await publicClient.getBlockNumber();
-  const fromBlock =
-    latestBlock > BLOCK_LOOKBACK ? latestBlock - BLOCK_LOOKBACK : 0n;
+  const fromBlock = latestBlock > BLOCK_LOOKBACK ? latestBlock - BLOCK_LOOKBACK : 0n;
 
   const existing = loadJobsDb();
   const seen = new Set(existing.map((j) => j.id));
-  const newJobs: JobRecord[] = [];
-
   const skills = loadDb();
 
-  for (const token of tokens) {
-    const feeTransfers = await fetchOperatorTransfers(
-      token,
-      operator,
-      fromBlock,
-      latestBlock,
-    );
+  const [createdLogs, completedLogs] = await Promise.all([
+    fetchEscrowJobCreated(escrow, fromBlock, latestBlock),
+    fetchEscrowJobCompleted(escrow, fromBlock, latestBlock),
+  ]);
 
-    for (const fee of feeTransfers) {
-      const id = `${fee.txHash}-${fee.logIndex}`;
-      if (seen.has(id)) continue;
+  // Index completed jobs by jobId for quick lookup
+  const completedByJobId = new Map<string, JobCompletedDecoded>();
+  for (const log of completedLogs) {
+    const d = decodeJobCompleted(log);
+    if (d) completedByJobId.set(d.jobId.toString(), d);
+  }
 
-      // Pull all token transfers in this tx and find the non-operator leg (the
-      // provider payment).
-      const txTransfers = await fetchAllTokenTransfersInTx(
-        token,
-        fee.txHash,
-        fee.blockNumber,
-      );
-      const providerTransfer = txTransfers.find(
-        (t) =>
-          t.logIndex !== fee.logIndex &&
-          t.to.toLowerCase() !== operator.toLowerCase(),
-      );
-      if (!providerTransfer) {
-        // Not a recognizable settlement (no second leg); skip
-        continue;
+  const newJobs: JobRecord[] = [];
+
+  for (const log of createdLogs) {
+    const created = decodeJobCreated(log);
+    if (!created) continue;
+
+    const id = `${created.txHash}-${created.jobId}`;
+    if (seen.has(id)) continue;
+
+    const completed = completedByJobId.get(created.jobId.toString());
+
+    const tokenMeta = tokenInfo(created.token);
+    if (!tokenMeta) continue; // unknown payment token
+
+    // Resolve real consumer: prefer jobSpecURI (encoded by settler), fallback to on-chain `consumer`
+    let realConsumer = created.consumer;
+    try {
+      const job = await publicClient.readContract({
+        address: escrow,
+        abi: ESCROW_JOB_GETTER_ABI,
+        functionName: "getJob",
+        args: [created.jobId],
+      });
+      const fromURI = parseConsumerFromURI(job.jobSpecURI);
+      if (fromURI && isAddress(fromURI)) {
+        realConsumer = getAddress(fromURI) as `0x${string}`;
       }
+    } catch { /* getJob failed; keep on-chain consumer */ }
 
-      const ts = await getBlockTimestamp(fee.blockNumber);
-      const skillRecord = findSkillByProvider(providerTransfer.to, skills);
+    const ts = await getBlockTimestamp(created.blockNumber);
+    const skillRecord = findSkill(created.skillId, created.provider, skills);
 
-      const job: JobRecord = {
-        id,
-        skillId: skillRecord ? String(skillRecord.skillId) : "",
-        skillName: skillRecord ? skillRecord.name : "unknown-skill",
-        skillTier: skillRecord ? skillRecord.tier : "FREE",
-        consumer: getAddress(fee.from),
-        score: skillRecord ? skillRecord.averageScore : 0,
-        settlementTx: fee.txHash,
-        amount: formatUnits(providerTransfer.value, token.decimals),
-        feeAmount: formatUnits(fee.value, token.decimals),
-        token: token.symbol,
-        blockNumber: Number(fee.blockNumber),
-        timestamp: new Date(ts * 1000).toISOString(),
-        confirmed: true,
-        provider: getAddress(providerTransfer.to),
-      };
+    const totalAmount = created.amount;
+    const fee = completed?.fee ?? 0n;
+    const paidToProvider = completed?.paidToProvider ?? (totalAmount - fee);
 
-      newJobs.push(job);
-      seen.add(id);
-    }
+    const job: JobRecord = {
+      id,
+      jobId: created.jobId.toString(),
+      skillId: created.skillId.toString(),
+      skillName: skillRecord ? skillRecord.name : "unknown-skill",
+      skillTier: skillRecord ? skillRecord.tier : "FREE",
+      consumer: getAddress(realConsumer),
+      score: skillRecord ? skillRecord.averageScore : 0,
+      settlementTx: completed ? completed.txHash : created.txHash,
+      createJobTx: created.txHash,
+      completeJobTx: completed ? completed.txHash : "",
+      amount: formatUnits(paidToProvider, tokenMeta.decimals),
+      feeAmount: formatUnits(fee, tokenMeta.decimals),
+      token: tokenMeta.symbol,
+      blockNumber: Number((completed ?? created).blockNumber),
+      timestamp: new Date(ts * 1000).toISOString(),
+      confirmed: !!completed,
+      provider: getAddress(created.provider),
+    };
+
+    newJobs.push(job);
+    seen.add(id);
   }
 
   if (newJobs.length > 0) {
     const merged = [...existing, ...newJobs];
-    // Keep at most 1000 most-recent jobs (by timestamp desc)
     merged.sort(
       (a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
     const trimmed = merged.slice(0, 1000);
     saveJobsDb(trimmed);
-    console.log(`[Jobs] Indexed ${newJobs.length} new job(s); total=${trimmed.length}`);
+    console.log(`[Jobs] Indexed ${newJobs.length} new escrow job(s); total=${trimmed.length}`);
     return trimmed;
   }
 
