@@ -56,8 +56,9 @@ export default function PaymentModal({ skill, onClose, onSuccess }: PaymentModal
       const facilitatorUrl = process.env.NEXT_PUBLIC_FACILITATOR_URL
       if (!facilitatorUrl) throw new Error('NEXT_PUBLIC_FACILITATOR_URL not set.')
 
+      // default 0.05 if price missing
       const rawAmount = Math.round(skill.price * Math.pow(10, USDC_DECIMALS))
-      const amountBaseUnits = String(rawAmount > 0 ? rawAmount : 0)
+      const amountBaseUnits = String(rawAmount > 0 ? rawAmount : 50_000)
       const detailsRes = await fetch(
         `${facilitatorUrl}/payment-details?skillId=${skill.id}&amount=${amountBaseUnits}&asset=${USDC_ADDRESS}&resource=/skills/${skill.id}`
       )

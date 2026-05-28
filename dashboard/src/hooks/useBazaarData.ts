@@ -189,6 +189,7 @@ interface RawSkillRecord {
   registeredAt: number
   totalJobs: number
   averageScore: number
+  pricePerCallBps?: number
   tier: Tier
   tierPaidUntil?: number
   active?: boolean
@@ -210,7 +211,7 @@ function normalizeSkill(raw: RawSkillRecord): Skill {
     endpoint: raw.endpoint,
     metadataURI: raw.metadataURI,
     owner: raw.owner,
-    price: 0.05,
+    price: raw.pricePerCallBps ? raw.pricePerCallBps / 1_000_000 : 0.05,
     acceptedToken: 'USDC',
     score: raw.averageScore ?? 0,
     jobs: raw.totalJobs ?? 0,
