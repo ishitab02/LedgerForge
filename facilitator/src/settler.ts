@@ -6,6 +6,7 @@ import {
   X402_ESCROW_ADDRESS,
   FACILITATOR_FEE_BPS,
   ERC8004_REPUTATION_ADDRESS,
+  PROVIDER_ADDRESS,
 } from "./config.js";
 import type { X402PaymentDetails, X402PaymentProof, SettlementResult } from "./types.js";
 import { usedNonces } from "./verifier.js";
@@ -37,36 +38,6 @@ const ERC20_ABI = [
     outputs: [{ name: "", type: "bool" }],
   },
 ] as const;
-
-const SKILL_REGISTRY_ABI = [
-  {
-    name: "recordJobCompletion", type: "function", stateMutability: "nonpayable",
-    inputs: [
-      { name: "skillId",         type: "uint256" },
-      { name: "reputationScore", type: "uint8"   },
-    ],
-    outputs: [],
-  },
-] as const;
-
-const ERC8004_REPUTATION_ABI = [
-  {
-    name: "giveFeedback", type: "function", stateMutability: "nonpayable",
-    inputs: [
-      { name: "agentId",     type: "uint256" },
-      { name: "scoreScaled", type: "int128"  },
-      { name: "decimals",    type: "uint8"   },
-      { name: "tag1",        type: "string"  },
-      { name: "tag2",        type: "string"  },
-      { name: "fileuri",     type: "string"  },
-      { name: "filehash",    type: "string"  },
-      { name: "extra",       type: "bytes32" },
-    ],
-    outputs: [],
-  },
-] as const;
-
-const ZERO_BYTES32: Hex = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 const X402_ESCROW_ABI = [
   {
@@ -107,6 +78,36 @@ const X402_ESCROW_ABI = [
   },
 ] as const;
 
+const SKILL_REGISTRY_ABI = [
+  {
+    name: "recordJobCompletion", type: "function", stateMutability: "nonpayable",
+    inputs: [
+      { name: "skillId",         type: "uint256" },
+      { name: "reputationScore", type: "uint8"   },
+    ],
+    outputs: [],
+  },
+] as const;
+
+const ERC8004_REPUTATION_ABI = [
+  {
+    name: "giveFeedback", type: "function", stateMutability: "nonpayable",
+    inputs: [
+      { name: "agentId",     type: "uint256" },
+      { name: "scoreScaled", type: "int128"  },
+      { name: "decimals",    type: "uint8"   },
+      { name: "tag1",        type: "string"  },
+      { name: "tag2",        type: "string"  },
+      { name: "fileuri",     type: "string"  },
+      { name: "filehash",    type: "string"  },
+      { name: "extra",       type: "bytes32" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+const ZERO_BYTES32: Hex = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
 export async function settlePayment(
   _details: X402PaymentDetails,
   proof: X402PaymentProof
@@ -115,7 +116,12 @@ export async function settlePayment(
   const operator = walletClient.account.address;
   const auth = proof.payload.authorization;
   const totalAmount = BigInt(auth.amount);
-  const provider = auth.to as `0x${string}`;
+  // contract rejects provider==caller
+  const rawProvider = auth.to as `0x${string}`;
+  const provider: `0x${string}` =
+    rawProvider.toLowerCase() === operator.toLowerCase() && PROVIDER_ADDRESS
+      ? PROVIDER_ADDRESS
+      : rawProvider;
 
   if (!X402_ESCROW_ADDRESS) {
     throw new Error("X402_ESCROW_ADDRESS not configured; cannot settle via escrow");

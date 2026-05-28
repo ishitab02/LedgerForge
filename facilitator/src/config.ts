@@ -35,6 +35,12 @@ export const FACILITATOR_FEE_BPS =
   parseInt(process.env.FACILITATOR_FEE_BPS ?? "20");
 export const PORT = parseInt(process.env.FACILITATOR_PORT ?? "3001");
 
+// provider wallet must differ from operator
+export const PROVIDER_ADDRESS =
+  (process.env.PROVIDER_ADDRESS ??
+   process.env.SPAWN_PROVIDER_ADDRESS ??
+   "") as `0x${string}`;
+
 export const ALLOWED_TOKENS = new Set([
   (process.env.USDE_ADDRESS ?? "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34").toLowerCase(),
   (process.env.USDC_ADDRESS ?? "0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9").toLowerCase(),
