@@ -13,6 +13,7 @@ export interface SkillRecord {
   registeredAt: number;
   totalJobs: number;
   averageScore: number;
+  pricePerCallBps: number;
   tier: BazaarTier;
   tierPaidUntil: number;
   active: boolean;
