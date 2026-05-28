@@ -120,6 +120,7 @@ export async function fetchSkillFromChain(
       registeredAt: Number(skill.registeredAt),
       totalJobs: Number(skill.totalJobs),
       averageScore,
+      pricePerCallBps: Number(skill.pricePerCallBps),
       tier: tier.tier,
       tierPaidUntil: tier.tierPaidUntil,
       active: skill.active,
