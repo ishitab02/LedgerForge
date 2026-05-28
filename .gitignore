@@ -52,3 +52,7 @@ logs/
 # ── Turbo / build caches ──────────────────────────────────────────────────────
 .turbo/
 .cache/
+
+# ── Indexer local DB ──────────────────────────────────────────────────────────
+indexer/skill_db.json
+indexer/jobs_db.json
