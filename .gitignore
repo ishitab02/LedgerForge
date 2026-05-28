@@ -56,3 +56,6 @@ logs/
 # ── Indexer local DB ──────────────────────────────────────────────────────────
 indexer/skill_db.json
 indexer/jobs_db.json
+
+# ── Autonomous scout artifacts (contain demo-provider private keys) ───────────
+agents/scout-runs/

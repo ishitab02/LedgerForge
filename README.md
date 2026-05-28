@@ -92,19 +92,21 @@ All services are live on Mantle Mainnet. No setup required to observe.
 | **Byreal skill server** | [ledgerforge-byreal.fly.dev](https://ledgerforge-byreal.fly.dev) |
 | **Mantle data skill server** | [ledgerforge-mantle.fly.dev](https://ledgerforge-mantle.fly.dev) |
 
-### Proven on-chain: live settlement trace
+### Proven on-chain: autonomous agent run
 
-The full 5-step escrow flow has been executed on Mantle Mainnet. Every step is verifiable on Mantlescan:
+The LedgerForge Scout agent (`npm run scout`) ran live on Mantle Mainnet, paying for 5 skills sequentially and writing an ENTER_POOL decision with 85% confidence. Every settlement is verifiable on Mantlescan:
 
-| Step | Transaction |
-|------|-------------|
-| Pull funds (consumer → operator) | [0xb2592b…](https://mantlescan.xyz/tx/0xb2592b) |
-| `x402Escrow.createJob` (jobId=2) | [0xff8177…](https://mantlescan.xyz/tx/0xff8177) |
-| `x402Escrow.completeJob` (provider received 0.1996 USDC) | [0x9172f2…](https://mantlescan.xyz/tx/0x9172f2) |
-| `SkillRegistry.recordJobCompletion` | [0x57e5eb…](https://mantlescan.xyz/tx/0x57e5eb) |
-| `ERC-8004.giveFeedback` | [0x9d366a…](https://mantlescan.xyz/tx/0x9d366a) |
+| # | Skill | escrowJobId | `completeJob` tx |
+|---|-------|-------------|-----------------|
+| 1 | byreal-top-pools | `11` | [0xe7656e52fe…](https://mantlescan.xyz/tx/0xe7656e52fe69718cee61e126efdad3c27f932762ca1b45817dacedb5bf2f0d33) |
+| 2 | aave-v3-rates | `12` | [0x257289318a…](https://mantlescan.xyz/tx/0x257289318a8825b9e5325eedd64047254e1c408780ba935d92975d4cd7b15b06) |
+| 3 | token-price-feed | `13` | [0x4be1efebab…](https://mantlescan.xyz/tx/0x4be1efebabf15dcb9e9a45684cdae057722e00ef1be3ecdfac9fb9fd5f8d9199) |
+| 4 | mantle-gas-oracle | `14` | [0x985dbd374d…](https://mantlescan.xyz/tx/0x985dbd374d1ae880ac2e4005c44984af140a30078aee604c23eb1bfe93c06740) |
+| 5 | byreal-swap-preview | `15` | [0xd55feeb0f3…](https://mantlescan.xyz/tx/0xd55feeb0f390d88353a42af480ab0c6e68f5d689501f424b6aba7990f8b5c7d1) |
 
-Current stats: **15 skills registered · 7 jobs settled · 0.3992 USDC total revenue**
+Each row = 5 Mantle txs (pull → createJob → completeJob → SkillRegistry rep → ERC-8004 feedback). One agent run = **25 on-chain transactions**.
+
+Current stats: **15 skills registered · 15 jobs settled · 0.75 USDC total revenue**
 
 ---
 
@@ -148,6 +150,16 @@ const result = await client.invokeSkill(11, { query: 'top Mantle protocols by TV
 console.log(result.data)           // live TVL from DeFiLlama
 console.log(result.settlementTxHash) // on-chain proof
 ```
+
+### Run the autonomous DeFi scout agent
+
+```bash
+cd agents
+npm run scout           # live: pays ~0.25 USDC, fires 25 Mantle txs, writes a digest
+npm run scout:dry-run   # free simulation, no on-chain settlements
+```
+
+The scout fetches live market data from 4–5 paid skills, compares Byreal pool APR vs Aave USDC supply rate, and writes a markdown digest to `agents/scout-runs/` with every settlement tx hash.
 
 ### Run the multi-agent client simulator
 
