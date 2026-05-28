@@ -104,6 +104,8 @@ app.get("/skills/:id", (req, res) => {
 app.get("/stats", (_req, res) => {
   const db = loadDb();
   const skills = Object.values(db);
+  const jobs = getJobs(1000);
+  const totalRevenue = jobs.reduce((sum, job) => sum + parseFloat(job.amount ?? "0"), 0);
 
   res.json({
     totalSkills: skills.length,
@@ -114,6 +116,7 @@ app.get("/stats", (_req, res) => {
       skills.length > 0
         ? Math.round(skills.reduce((total, skill) => total + skill.averageScore, 0) / skills.length)
         : 0,
+    totalRevenue: Math.round(totalRevenue * 1e6) / 1e6,
   });
 });
 
