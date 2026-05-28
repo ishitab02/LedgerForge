@@ -7,9 +7,16 @@
     "build": "tsc --noEmit",
     "spawn-skills": "tsx src/spawn-skills.ts",
     "spawn-server": "tsx src/spawn-skills.ts --serve",
+    "mantle-skills": "tsx src/mantle-skills.ts",
+    "mantle-server": "tsx src/mantle-skills.ts --serve",
+    "byreal-skills": "node --env-file=../.env node_modules/.bin/tsx src/byreal-skills.ts",
+    "byreal-server": "node --env-file=../.env node_modules/.bin/tsx src/byreal-skills.ts --serve",
+    "smoke-byreal": "node_modules/.bin/byreal-cli pools list --sort-field apr24h --page-size 3 -o json",
     "demo-consumer": "tsx src/demo-consumer.ts"
   },
   "dependencies": {
+    "@byreal-io/byreal-cli-realclaw": "^0.4.5",
+    "@byreal-io/byreal-perps-cli": "^0.3.7",
     "dotenv": "^16.4.5",
     "viem": "^2.21.0"
   },

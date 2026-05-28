@@ -188,36 +188,48 @@ function accessTokenIsValid(req: IncomingMessage): boolean {
   return header.startsWith("Bearer settled:");
 }
 
+const DECISION_LOOKBACK_BLOCKS = 200_000n;
+const DECISION_CHUNK_SIZE = 5_000n;
+
 async function verifyDecisionHash(contractAddress: Address, decisionHash: Hex) {
+  const latest = await publicClient.getBlockNumber();
+  const oldest = latest > DECISION_LOOKBACK_BLOCKS ? latest - DECISION_LOOKBACK_BLOCKS : 0n;
+
   for (const event of DECISION_EVENT_ABIS) {
-    const logs = await publicClient.getLogs({
-      address: contractAddress,
-      event,
-      args: { decisionHash },
-      fromBlock: 0n,
-      toBlock: "latest",
-    });
+    let toBlock = latest;
+    while (toBlock >= oldest) {
+      const fromBlock = toBlock > DECISION_CHUNK_SIZE ? toBlock - DECISION_CHUNK_SIZE + 1n : 0n;
+      const logs = await publicClient.getLogs({
+        address: contractAddress,
+        event,
+        args: { decisionHash },
+        fromBlock: fromBlock < oldest ? oldest : fromBlock,
+        toBlock,
+      });
 
-    if (logs.length === 0) continue;
+      if (logs.length > 0) {
+        const log = logs[0];
+        const decoded = decodeEventLog({
+          abi: [event],
+          data: log.data,
+          topics: log.topics,
+        });
+        const args = decoded.args as {
+          actionType?: number | bigint;
+          amountBps?: number | bigint;
+        };
+        return {
+          verified: true,
+          actionType: args.actionType?.toString() ?? null,
+          amountBps: args.amountBps?.toString() ?? null,
+          blockNumber: log.blockNumber?.toString() ?? null,
+          txHash: log.transactionHash,
+        };
+      }
 
-    const log = logs[0];
-    const decoded = decodeEventLog({
-      abi: [event],
-      data: log.data,
-      topics: log.topics,
-    });
-    const args = decoded.args as {
-      actionType?: number | bigint;
-      amountBps?: number | bigint;
-    };
-
-    return {
-      verified: true,
-      actionType: args.actionType?.toString() ?? null,
-      amountBps: args.amountBps?.toString() ?? null,
-      blockNumber: log.blockNumber?.toString() ?? null,
-      txHash: log.transactionHash,
-    };
+      if (fromBlock <= oldest) break;
+      toBlock = fromBlock - 1n;
+    }
   }
 
   return {
@@ -226,6 +238,7 @@ async function verifyDecisionHash(contractAddress: Address, decisionHash: Hex) {
     amountBps: null,
     blockNumber: null,
     txHash: null,
+    scannedRange: { fromBlock: oldest.toString(), toBlock: latest.toString() },
   };
 }
 
