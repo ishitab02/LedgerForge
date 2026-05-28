@@ -64,8 +64,8 @@ Consumer Agent                            Mantle Network
 | `SkillRegistry` | [`0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992`](https://mantlescan.xyz/address/0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992) | Registers skills as ERC-8004 identities; stores endpoint URL, accepted tokens, price-per-call |
 | `x402Escrow` | [`0x1d550b555B3a2e124ef611b55965848d6be233a2`](https://mantlescan.xyz/address/0x1d550b555B3a2e124ef611b55965848d6be233a2) | Holds payment in escrow via EIP-3009; released by facilitator after job completion |
 | `BazaarListings` | [`0xaB5a52C30D769A7Eae1474857A6180E71765CBAF`](https://mantlescan.xyz/address/0xaB5a52C30D769A7Eae1474857A6180E71765CBAF) | Stores listing display metadata (name, description, tags, logoURI) |
-| ERC-8004 Identity Registry | `0x8004A818BFB912233c491871b3d84c89A494BD9e` | Canonical ERC-8004 identity registry on Mantle |
-| ERC-8004 Reputation Registry | `0x8004B663056A597Dffe9eCcC1965A193B7388713` | Canonical ERC-8004 reputation registry on Mantle |
+| ERC-8004 Identity Registry | [`0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`](https://mantlescan.xyz/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) | Canonical ERC-8004 identity registry on Mantle (v2, verified) |
+| ERC-8004 Reputation Registry | [`0x8004BAa17C55a88189AE136b182e5fdA19dE9b63`](https://mantlescan.xyz/address/0x8004BAa17C55a88189AE136b182e5fdA19dE9b63) | Canonical ERC-8004 reputation registry on Mantle (v2.0.0 ERC-1967 proxy) |
 
 ### Facilitator Server
 
@@ -81,52 +81,95 @@ The Bazaar is the discovery and ranking layer. The Next.js 15 frontend and its b
 
 ## Live Demo
 
+All services are live on Mantle Mainnet. No setup required to observe.
+
 | Service | URL |
 |---|---|
 | **Bazaar Dashboard** | [dashboard-xi-sooty-72.vercel.app](https://dashboard-xi-sooty-72.vercel.app) |
-| **Bazaar API (Indexer)** | [ledgerforge-indexer.fly.dev](https://ledgerforge-indexer.fly.dev) |
+| **Bazaar API / Indexer** | [ledgerforge-indexer.fly.dev](https://ledgerforge-indexer.fly.dev) |
 | **Facilitator** | [ledgerforge-facilitator.fly.dev](https://ledgerforge-facilitator.fly.dev) |
+| **Spawn skill server** | [ledgerforge-spawn.fly.dev](https://ledgerforge-spawn.fly.dev) |
+| **Byreal skill server** | [ledgerforge-byreal.fly.dev](https://ledgerforge-byreal.fly.dev) |
+| **Mantle data skill server** | [ledgerforge-mantle.fly.dev](https://ledgerforge-mantle.fly.dev) |
+
+### Proven on-chain: live settlement trace
+
+The full 5-step escrow flow has been executed on Mantle Mainnet. Every step is verifiable on Mantlescan:
+
+| Step | Transaction |
+|------|-------------|
+| Pull funds (consumer → operator) | [0xb2592b…](https://mantlescan.xyz/tx/0xb2592b) |
+| `x402Escrow.createJob` (jobId=2) | [0xff8177…](https://mantlescan.xyz/tx/0xff8177) |
+| `x402Escrow.completeJob` (provider received 0.1996 USDC) | [0x9172f2…](https://mantlescan.xyz/tx/0x9172f2) |
+| `SkillRegistry.recordJobCompletion` | [0x57e5eb…](https://mantlescan.xyz/tx/0x57e5eb) |
+| `ERC-8004.giveFeedback` | [0x9d366a…](https://mantlescan.xyz/tx/0x9d366a) |
+
+Current stats: **15 skills registered · 7 jobs settled · 0.3992 USDC total revenue**
 
 ---
 
 ## Quick Start
 
+### Use the live deployment (no setup)
+
 ```bash
-# 1. Prerequisites
-#    Install Foundry: curl -L https://foundry.paradigm.xyz | bash && foundryup
-#    Install Node 20+, pnpm
+# Browse the skill registry
+curl https://ledgerforge-indexer.fly.dev/skills | jq '.skills[] | {skillId, name, endpoint}'
 
-# 2. Clone and install
-git clone <repo-url> ledgerforge
-cd ledgerforge
-pnpm install
+# Check live job settlements
+curl https://ledgerforge-indexer.fly.dev/jobs | jq '.[0]'
 
-# 3. Configure
-cp .env.example .env
-# Edit .env: fill DEPLOYER_PRIVATE_KEY, OPERATOR_PRIVATE_KEY, MANTLESCAN_API_KEY
+# Get payment details for a skill
+curl "https://ledgerforge-facilitator.fly.dev/payment-details?skillId=11&amount=200000"
 
-# 4. Build and test contracts
-cd contracts
-forge install && forge test
-
-# 5. Deploy to Mantle Mainnet (requires MNT for gas)
-forge script script/Deploy.s.sol \
-  --rpc-url $MANTLE_RPC \
-  --broadcast \
-  --verify
-
-# 6. Update .env with deployed contract addresses, then start services
-cd ../indexer && npm run dev &
-cd ../facilitator && npm run dev &
-cd ../dashboard && npm run dev   # → http://localhost:3000
-
-# 7. Seed initial listings and run the end-to-end demo
-cd ../agents
-npm run spawn-skills
-npm run demo-consumer
+# Call a skill directly (simulated payment token)
+curl "https://ledgerforge-mantle.fly.dev/mantle-tvl-monitor" \
+  -H "Authorization: Bearer settled:0xyourtxhash:$(date +%s)"
 ```
 
-See [AGENTS.md](./AGENTS.md) for the full deployment runbook, all environment variables, and known gotchas.
+### SDK usage
+
+```bash
+npm install @ledgerforge/x402-mantle
+```
+
+```typescript
+import { LedgerForgeClient } from '@ledgerforge/x402-mantle'
+
+const client = new LedgerForgeClient({
+  facilitatorUrl: 'https://ledgerforge-facilitator.fly.dev',
+  bazaarApiUrl: 'https://ledgerforge-indexer.fly.dev',
+  privateKey: process.env.CONSUMER_PRIVATE_KEY,
+  rpcUrl: 'https://rpc.mantle.xyz',
+})
+
+// Browse and pay for a skill in one call
+const result = await client.invokeSkill(11, { query: 'top Mantle protocols by TVL' })
+console.log(result.data)           // live TVL from DeFiLlama
+console.log(result.settlementTxHash) // on-chain proof
+```
+
+### Run the multi-agent client simulator
+
+```bash
+cd agents
+npm run simulate-clients   # five personas, infinite loop, round scorecard
+```
+
+### Local development
+
+```bash
+git clone https://github.com/PoulavBhowmick03/ledgerforge
+cd ledgerforge
+cp .env.example .env
+# Fill OPERATOR_PRIVATE_KEY, CONSUMER_PRIVATE_KEY — contracts already deployed
+
+cd indexer   && npm install && npm run dev &
+cd facilitator && npm install && npm run dev &
+cd dashboard   && npm install && npm run dev   # → http://localhost:3000
+```
+
+See [AGENTS.md](./AGENTS.md) for the full runbook, Makefile targets, and known gotchas.
 
 ---
 
@@ -137,6 +180,8 @@ See [AGENTS.md](./AGENTS.md) for the full deployment runbook, all environment va
 | SkillRegistry | `0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992` | [View](https://mantlescan.xyz/address/0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992) |
 | x402Escrow | `0x1d550b555B3a2e124ef611b55965848d6be233a2` | [View](https://mantlescan.xyz/address/0x1d550b555B3a2e124ef611b55965848d6be233a2) |
 | BazaarListings | `0xaB5a52C30D769A7Eae1474857A6180E71765CBAF` | [View](https://mantlescan.xyz/address/0xaB5a52C30D769A7Eae1474857A6180E71765CBAF) |
+| ERC-8004 Reputation Registry | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63` | [View](https://mantlescan.xyz/address/0x8004BAa17C55a88189AE136b182e5fdA19dE9b63) |
+| ERC-8004 Identity Registry | `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` | [View](https://mantlescan.xyz/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) |
 | Deployer / Operator | `0xC0296012Cfbb0e6DF5dA7158B65Dbc46DD9650e0` | [View](https://mantlescan.xyz/address/0xC0296012Cfbb0e6DF5dA7158B65Dbc46DD9650e0) |
 
 ---
