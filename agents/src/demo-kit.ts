@@ -34,7 +34,7 @@ export interface FailureLog {
 export interface ProviderRecipient {
   address: Address;
   source: "DEMO_PROVIDER_PRIVATE_KEY" | "DEMO_PROVIDER_ADDRESS" | "ephemeral";
-  ephemeralSecret?: Hex;
+  ephemeralSigner?: Hex;
 }
 
 export interface DemoRuntimeConfig {
@@ -117,11 +117,11 @@ function resolveProviderRecipient(): ProviderRecipient {
     };
   }
 
-  const ephemeralSecret = generatePrivateKey();
+  const ephemeralSigner = generatePrivateKey();
   return {
-    address: privateKeyToAccount(ephemeralSecret).address,
+    address: privateKeyToAccount(ephemeralSigner).address,
     source: "ephemeral",
-    ephemeralSecret,
+    ephemeralSigner,
   };
 }
 
@@ -344,16 +344,16 @@ export class DemoRuntime {
   printProviderRecovery(): void {
     if (
       this.provider.source !== "ephemeral" ||
-      !this.provider.ephemeralSecret ||
+      !this.provider.ephemeralSigner ||
       this.config.dryRun ||
       this.settlements.length === 0
     ) {
       return;
     }
 
-    process.stderr.write("\n--- Provider recovery (stderr-only; artifacts do not contain this secret) ---\n");
+    process.stderr.write("\n--- Provider recovery (stderr-only; artifacts do not contain this credential) ---\n");
     process.stderr.write(`Provider:           ${this.provider.address}\n`);
-    process.stderr.write(`Recovery secret:    ${this.provider.ephemeralSecret}\n`);
+    process.stderr.write(`Provider signer:    ${this.provider.ephemeralSigner}\n`);
     process.stderr.write(`Estimated holdings: ${formatTokenAmount(this.totalSpent() * 9980n / 10000n)} USDC (after 20bps fee)\n`);
     process.stderr.write("Store it if you want to recover the provider payout later.\n\n");
   }

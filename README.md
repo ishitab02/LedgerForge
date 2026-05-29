@@ -106,7 +106,7 @@ The LedgerForge Scout agent (`npm run scout`) ran live on Mantle Mainnet, paying
 
 Each row = 5 Mantle txs (pull → createJob → completeJob → SkillRegistry rep → ERC-8004 feedback). One agent run = **25 on-chain transactions**.
 
-Current stats: **15 skills registered · 35+ jobs settled · ~1.80 USDC total revenue** _(as of 2026-05-29; live numbers at [`/stats`](https://ledgerforge-indexer.fly.dev/stats))_
+Current stats: **15 skills registered · 44+ jobs settled · ~2.25 USDC total revenue** _(as of 2026-05-29; live numbers at [`/stats`](https://ledgerforge-indexer.fly.dev/stats))_
 
 ---
 
@@ -151,17 +151,31 @@ console.log(result.data)           // live TVL from DeFiLlama
 console.log(result.settlementTxHash) // on-chain proof
 ```
 
-### Run the autonomous DeFi scout agent
+### Run the demo agents
 
-This is the headline demo: a real autonomous agent that **spends real USDC on Mantle mainnet** to discover an opportunity and produce an investment recommendation, leaving an end-to-end on-chain audit trail.
+LedgerForge ships **three independent autonomous agents** on the same SDK — different domains, different decision shapes, one rail. Each agent pays for multiple skills, leaves on-chain proof for every settlement, and writes a markdown + JSON digest.
+
+| Agent | Domain | Skills called | Decision shape | Live run |
+|---|---|---|---|---|
+| **Scout** | DeFi yield rotation | byreal-top-pools, aave-v3-rates, token-price-feed, mantle-gas-oracle, byreal-swap-preview | `ENTER_POOL` / `STAY` (with confidence + reasoning) | `npm run scout` |
+| **Perps Coach** | Byreal perps trading | byreal-perps-signals × N, token-price-feed, mantle-gas-oracle | Per-position: `HOLD` / `REDUCE` / `TAKE_PROFIT` / `AVOID` | `npm run perps-coach` |
+| **Spawn Auditor** | AI deploy provenance / audit | spawn-failure-analyst, lineage-context-builder, decision-hash-verifier | `APPROVE` / `BLOCK` with rationale + remediations | `npm run spawn-auditor` |
+
+Each has a free dry-run variant (e.g. `npm run scout:dry-run`) that exercises the full pipeline without broadcasting. `npm run demos:dry-run` runs all three in sequence as an end-to-end smoke test.
 
 ```bash
 cd agents
-npm run scout           # live: pays ~0.25 USDC, fires 25 Mantle txs, writes a digest
-npm run scout:dry-run   # free simulation, no on-chain settlements
+npm run demos:dry-run          # all three agents, no on-chain settlements
+npm run scout                  # live: ~0.25 USDC, 25 Mantle txs, writes a digest
+npm run perps-coach            # live: scans 3 positions, recommends actions
+npm run spawn-auditor          # live: audits a Spawn deployment, verdicts APPROVE/BLOCK
 ```
 
-**What it does in ~2 minutes:**
+Outputs land in `agents/scout-runs/`, `agents/perps-coach-runs/`, and `agents/spawn-auditor-runs/` respectively — each run produces a markdown digest (judge-friendly) and a parallel JSON file (machine-parseable). Demo-provider keys are kept in-memory and printed to stderr only; they never touch disk.
+
+#### Worked example: Scout
+
+The Scout agent is the most illustrative end-to-end demo of the rail. In ~2 minutes it:
 
 1. Calls `byreal-top-pools` (paid) → top Byreal CLMM pools by 24h APR
 2. Calls `aave-v3-rates` (paid) → Aave V3 USDC supply APY on Mantle
@@ -170,13 +184,9 @@ npm run scout:dry-run   # free simulation, no on-chain settlements
 5. **Decides**: if (top pool APR − Aave supply APY) > 5pp and gas < $1 → ENTER_POOL
 6. If ENTER_POOL: calls `byreal-swap-preview` (paid) → models the rotation, captures price impact
 
-**What you get:**
+That's 5 settlements × 5 mainnet txs each = **25 verifiable on-chain transactions** to produce one rebalance recommendation. Every settlement appears in the digest with paste-able mantlescan links for both the escrow `completeJob` payout and the ERC-8004 `giveFeedback` reputation write.
 
-- Live console: `✓ #6 byreal-top-pools  jobId=11  0xe7656e52fe…`
-- A markdown digest in `agents/scout-runs/` — TL;DR + decision + every settlement tx link, formatted for screenshots
-- 25 mainnet transactions (5 skills × 5 txs each: pull → createJob → completeJob → SkillRegistry rep → ERC-8004 feedback) — each one provable on [mantlescan.xyz](https://mantlescan.xyz)
-
-**Configure thresholds** via env vars: `SCOUT_PRICE_PER_CALL`, `SCOUT_MIN_APR_DELTA_PCT`, `SCOUT_MAX_GAS_USD`. Defaults in [`agents/src/autonomous-scout.ts`](agents/src/autonomous-scout.ts).
+**Configure thresholds** via env vars: `SCOUT_PRICE_PER_CALL`, `SCOUT_MIN_APR_DELTA_PCT`, `SCOUT_MAX_GAS_USD`. Each agent has its own equivalent env block — see `agents/src/<agent>.ts` for the full list.
 
 ### Run the multi-agent client simulator
 
