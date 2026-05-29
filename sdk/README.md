@@ -1,6 +1,6 @@
 # @ledgerforge/x402-mantle
 
-TypeScript SDK for the LedgerForge x402 payment rail on Mantle Network. Discover skills, pay for them with USDC/USDe via EIP-712, and execute the resulting access-token call — all in a few lines.
+TypeScript SDK for the LedgerForge x402 payment rail on Mantle Network. Discover skills, pay for them with USDC/USDe via EIP-712, and execute the resulting access-token call in a few lines.
 
 ```bash
 npm install @ledgerforge/x402-mantle viem
@@ -12,16 +12,14 @@ npm install @ledgerforge/x402-mantle viem
 import { LedgerForgeClient } from "@ledgerforge/x402-mantle";
 
 const client = new LedgerForgeClient({
-  privateKey: "0x..." // your wallet's private key on Mantle (see Onboarding below)
+  privateKey: "0x..." // Mantle wallet key, see onboarding
 });
 
-// 0. One-time setup: approve the operator to spend USDC
+// approve the operator once
 await client.approveOperator("USDC");
 
-// 1. Discovery
 const skills = await client.listSkills({ search: "byreal" });
 
-// 2. Pay + execute in one call
 const result = await client.invoke(skills[0].skillId, {
   query: { sortField: "apr24h", pageSize: 5 },
 });
@@ -30,13 +28,13 @@ console.log(result.output);            // skill response
 console.log(result.receipt.explorerUrl); // on-chain settlement tx
 ```
 
-## Onboarding — getting set up to pay for skills
+## Onboarding
 
 The SDK signs payments with a Mantle wallet you own. There's no "LedgerForge account" to sign up for. You need three things:
 
 **1. A wallet private key on Mantle**
 
-Any EVM wallet works — chainId 5000, gas token is MNT.
+Any EVM wallet works. ChainId is 5000, gas token is MNT.
 
 - *Existing wallet (MetaMask, Rabby, etc.)*: export the private key from your wallet's account settings. **Use a dedicated wallet for agent payments**, never your main wallet.
 - *Fresh wallet for an autonomous agent*: generate one with viem:
@@ -45,7 +43,7 @@ Any EVM wallet works — chainId 5000, gas token is MNT.
   const privateKey = generatePrivateKey();
   console.log('Fund this address:', privateKeyToAccount(privateKey).address);
   ```
-- *Custodial / KMS / Privy / Turnkey*: pass a pre-built viem `WalletClient` instead of `privateKey` — see [Configuration](#configuration).
+- *Custodial / KMS / Privy / Turnkey*: pass a pre-built viem `WalletClient` instead of `privateKey`. See [Configuration](#configuration).
 
 **2. Fund it with MNT (gas) + USDC (skill payments)**
 
@@ -54,9 +52,9 @@ You need both:
 - Some **USDC** on Mantle for skill fees (typical skill costs $0.05–$0.50)
 
 How to get them onto Mantle:
-- **Mantle Bridge** (https://app.mantle.xyz/bridge) — bridge USDC/MNT from Ethereum mainnet
-- **Bybit / OKX / MEXC** — withdraw directly to Mantle network from a CEX
-- **Swap on Merchant Moe / Agni** — if you already have MNT, swap to USDC
+- **Mantle Bridge** (https://app.mantle.xyz/bridge): bridge USDC/MNT from Ethereum mainnet
+- **Bybit / OKX / MEXC**: withdraw directly to Mantle network from a CEX
+- **Swap on Merchant Moe / Agni**: if you already have MNT, swap to USDC
 
 **3. Approve the operator to spend your USDC (one time, per token)**
 
@@ -74,17 +72,17 @@ You can also do this manually via the USDC contract on mantlescan:
 
 Once approved, `invoke()` works repeatedly without further approvals until the allowance runs out.
 
-> **Note for browser apps / dashboards**: the LedgerForge dashboard uses MetaMask directly — users don't need a private key, they sign in their wallet popup. The SDK is for programmatic / agent consumers. Use `walletClient` injection if you need to bridge a browser EIP-1193 provider.
+> **Note for browser apps / dashboards**: the LedgerForge dashboard uses MetaMask directly. Users do not need a private key; they sign in their wallet popup. The SDK is for programmatic / agent consumers. Use `walletClient` injection if you need to bridge a browser EIP-1193 provider.
 
 ## What it does
 
-LedgerForge turns HTTP endpoints into pay-per-call agent services. Behind every skill call is:
+LedgerForge turns HTTP endpoints into pay-per-call agent services. A skill call usually looks like this:
 
-1. **Discovery** — read the on-chain `SkillRegistry` via the LedgerForge bazaar API
-2. **Challenge** — `GET /payment-details` returns an x402 challenge specifying token, amount, recipient
-3. **Sign** — produce an EIP-712 typed-data signature authorizing the transfer
-4. **Settle** — `POST /facilitate` validates the signature, calls `transferFrom` on Mantle, returns an access token
-5. **Execute** — call the skill endpoint with `Authorization: Bearer settled:<tx>:<ts>`
+1. Discover a skill through the Bazaar API.
+2. Fetch an x402 challenge from `GET /payment-details`.
+3. Sign the EIP-712 payment authorization.
+4. Submit it to `POST /facilitate`.
+5. Call the skill endpoint with `Authorization: Bearer settled:<tx>:<ts>`.
 
 The SDK collapses all five steps into `invoke()`, or exposes each one for inspection.
 
@@ -104,7 +102,7 @@ new LedgerForgeClient({
   skillRegistry: "0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992",
   operatorAddress: "0xC0296012Cfbb0e6DF5dA7158B65Dbc46DD9650e0",
 
-  // Signing — pick ONE
+  // signing: pick one
   privateKey: "0x...",                  // most common
   account: privateKeyToAccount("0x..."), // pre-built viem account
   walletClient: myWalletClient,          // bring your own viem wallet
@@ -125,7 +123,7 @@ client.getSkill(skillId: number): Promise<SkillListing>
 ### Token approvals + balance
 
 ```ts
-// Read state — no signer required if you pass an `owner` address
+// read state without a signer if you pass owner
 client.getBalance("USDC"): Promise<bigint>
 client.getAllowance("USDC"): Promise<bigint>
 
@@ -146,8 +144,8 @@ client.callSkill(endpoint, accessToken, { method?, query?, body?, headers? }): P
 
 ```ts
 client.invoke<T>(skillId, {
-  query?:   { ... },        // → URL query params
-  body?:    { ... },        // → POST body (forces method: "POST")
+  query?:   { ... },        // URL query params
+  body?:    { ... },        // POST body (forces method: "POST")
   method?:  "GET" | "POST",
   headers?: { ... },
 
@@ -163,9 +161,9 @@ client.invoke<T>(skillId, {
 ```ts
 import {
   DEFAULTS,                 // Mantle mainnet addresses + URLs
-  formatTokenAmount,        // base units → "1.23"
+  formatTokenAmount,        // base units -> "1.23"
   checksumAddress,          // EIP-55
-  explorerTxUrl,            // tx → mantlescan link
+  explorerTxUrl,            // tx -> mantlescan link
   LedgerForgeError,         // typed errors with .code
 } from "@ledgerforge/x402-mantle";
 ```

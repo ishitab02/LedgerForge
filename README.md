@@ -8,7 +8,7 @@
 
 The agent economy has a trust problem. When an autonomous agent wants to hire another agent — for code generation, data analysis, API access, or any on-demand compute — there is no reliable way to know which providers are trustworthy, what they charge, or whether they will deliver. Existing service marketplaces use off-chain ratings that can be gamed, are siloed per platform, and carry no cryptographic weight. Agents have no persistent economic identity and no track record that follows them across deployments.
 
-LedgerForge solves this with three composable layers: an HTTP-native x402 payment rail that makes AI agents first-class economic participants on Mantle, an on-chain `SkillRegistry` that gives every service provider a permanent ERC-8004 identity, and automatic reputation updates written to the blockchain after every successful job execution. Every payment is escrowed, every settlement is on-chain, and every reputation score is derived directly from provable execution history — not self-reported ratings.
+LedgerForge solves this with three parts: an HTTP-native x402 payment rail that makes AI agents first-class economic participants on Mantle, an on-chain `SkillRegistry` that gives every service provider a permanent ERC-8004 identity, and automatic reputation updates written to the blockchain after every successful job execution. Every payment is escrowed, every settlement is on-chain, and every reputation score is derived directly from provable execution history — not self-reported ratings.
 
 Mantle is the right chain for this. MNT gas costs are low enough to make per-execution reputation writes economically viable (not just per-listing). The Mantle ecosystem natively includes Ethena USDe as a stablecoin — the primary payment token for LedgerForge. And Mantle's ERC-8004 standard provides exactly the agent identity and reputation primitives the system requires. No other L2 has this combination ready today.
 
@@ -69,13 +69,13 @@ Consumer Agent                            Mantle Network
 
 ### Facilitator Server
 
-The facilitator is a TypeScript/Express HTTP server that implements the x402 payment coordination protocol. It is the only trusted off-chain component: it validates EIP-3009 payment authorization signatures, locks consumer funds in `x402Escrow` on-chain, forwards jobs to provider agents, and releases escrowed payment to the provider after receiving a valid job completion proof. After each successful settlement, the facilitator also writes the execution result to the ERC-8004 Reputation Registry — incrementing the provider's on-chain reputation score. The facilitator takes a configurable fee (default: 20 bps / 0.2%) from each settlement before paying out to the provider.
+The facilitator is a TypeScript/Express HTTP server that coordinates x402 payments. It validates the signed payment, moves funds through `x402Escrow`, forwards the job to the provider, and releases payment after completion. After settlement, it writes the result to the ERC-8004 Reputation Registry so the provider's on-chain score moves with real usage. The facilitator fee defaults to 20 bps / 0.2%.
 
 The facilitator is intentionally the only party on the ERC-8004 reputation operator allowlist. This avoids requiring smart contract whitelisting and keeps the trust surface minimal.
 
 ### The Bazaar
 
-The Bazaar is the discovery and ranking layer. The Next.js 15 frontend and its backing API read skill listings from the on-chain `BazaarListings` contract (or from the local SQLite indexer DB for low-latency queries) and sort them by ERC-8004 reputation score — a composite of total executions, success rate, and cumulative payment volume. Ranking is entirely read-only: no contract writes are needed to compute or display rankings, which means the sort formula can be updated without redeploying any contracts. Consumers can filter by accepted payment token, price range, and skill category.
+The Bazaar is discovery. The Next.js frontend and API read listings from `BazaarListings` or the indexer DB, then sort by ERC-8004 reputation data. Ranking is read-only, so the sort formula can change without redeploying contracts. Consumers can filter by token, price, and category.
 
 ---
 
@@ -104,7 +104,7 @@ The LedgerForge Scout agent (`npm run scout`) ran live on Mantle Mainnet, paying
 | 4 | mantle-gas-oracle | `14` | [0x985dbd374d…](https://mantlescan.xyz/tx/0x985dbd374d1ae880ac2e4005c44984af140a30078aee604c23eb1bfe93c06740) |
 | 5 | byreal-swap-preview | `15` | [0xd55feeb0f3…](https://mantlescan.xyz/tx/0xd55feeb0f390d88353a42af480ab0c6e68f5d689501f424b6aba7990f8b5c7d1) |
 
-Each row = 5 Mantle txs (pull → createJob → completeJob → SkillRegistry rep → ERC-8004 feedback). One agent run = **25 on-chain transactions**.
+Each row = 5 Mantle txs (pull -> createJob -> completeJob -> SkillRegistry rep -> ERC-8004 feedback). One agent run = **25 on-chain transactions**.
 
 Current stats: **15 skills registered · 44+ jobs settled · ~2.25 USDC total revenue** _(as of 2026-05-29; live numbers at [`/stats`](https://ledgerforge-indexer.fly.dev/stats))_
 
@@ -153,7 +153,7 @@ console.log(result.settlementTxHash) // on-chain proof
 
 ### Run the demo agents
 
-LedgerForge ships **three independent autonomous agents** on the same SDK — different domains, different decision shapes, one rail. Each agent pays for multiple skills, leaves on-chain proof for every settlement, and writes a markdown + JSON digest.
+LedgerForge ships **three independent autonomous agents** on the same SDK: different domains, different decision shapes, one rail. Each agent pays for multiple skills, leaves on-chain proof for every settlement, and writes a markdown + JSON digest.
 
 | Agent | Domain | Skills called | Decision shape | Live run |
 |---|---|---|---|---|
@@ -171,22 +171,22 @@ npm run perps-coach            # live: scans 3 positions, recommends actions
 npm run spawn-auditor          # live: audits a Spawn deployment, verdicts APPROVE/BLOCK
 ```
 
-Outputs land in `agents/scout-runs/`, `agents/perps-coach-runs/`, and `agents/spawn-auditor-runs/` respectively — each run produces a markdown digest (judge-friendly) and a parallel JSON file (machine-parseable). Demo-provider keys are kept in-memory and printed to stderr only; they never touch disk.
+Outputs land in `agents/scout-runs/`, `agents/perps-coach-runs/`, and `agents/spawn-auditor-runs/`. Each run produces a markdown digest for review and a parallel JSON file for parsing. Demo-provider keys are kept in memory and printed to stderr only; they never touch disk.
 
 #### Worked example: Scout
 
 The Scout agent is the most illustrative end-to-end demo of the rail. In ~2 minutes it:
 
-1. Calls `byreal-top-pools` (paid) → top Byreal CLMM pools by 24h APR
-2. Calls `aave-v3-rates` (paid) → Aave V3 USDC supply APY on Mantle
-3. Calls `token-price-feed` (paid) → live USDC/USDe stablecoin prices
-4. Calls `mantle-gas-oracle` (paid) → current swap gas cost in USD
-5. **Decides**: if (top pool APR − Aave supply APY) > 5pp and gas < $1 → ENTER_POOL
-6. If ENTER_POOL: calls `byreal-swap-preview` (paid) → models the rotation, captures price impact
+1. Calls `byreal-top-pools` (paid): top Byreal CLMM pools by 24h APR
+2. Calls `aave-v3-rates` (paid): Aave V3 USDC supply APY on Mantle
+3. Calls `token-price-feed` (paid): live USDC/USDe stablecoin prices
+4. Calls `mantle-gas-oracle` (paid): current swap gas cost in USD
+5. **Decides**: if (top pool APR - Aave supply APY) > 5pp and gas < $1, ENTER_POOL
+6. If ENTER_POOL: calls `byreal-swap-preview` (paid), models the rotation, captures price impact
 
 That's 5 settlements × 5 mainnet txs each = **25 verifiable on-chain transactions** to produce one rebalance recommendation. Every settlement appears in the digest with paste-able mantlescan links for both the escrow `completeJob` payout and the ERC-8004 `giveFeedback` reputation write.
 
-**Configure thresholds** via env vars: `SCOUT_PRICE_PER_CALL`, `SCOUT_MIN_APR_DELTA_PCT`, `SCOUT_MAX_GAS_USD`. Each agent has its own equivalent env block — see `agents/src/<agent>.ts` for the full list.
+**Configure thresholds** via env vars: `SCOUT_PRICE_PER_CALL`, `SCOUT_MIN_APR_DELTA_PCT`, `SCOUT_MAX_GAS_USD`. Each agent has its own equivalent env block; see `agents/src/<agent>.ts` for the full list.
 
 ### Run the multi-agent client simulator
 
@@ -201,11 +201,11 @@ npm run simulate-clients   # five personas, infinite loop, round scorecard
 git clone https://github.com/PoulavBhowmick03/ledgerforge
 cd ledgerforge
 cp .env.example .env
-# Fill OPERATOR_PRIVATE_KEY, CONSUMER_PRIVATE_KEY — contracts already deployed
+# Fill OPERATOR_PRIVATE_KEY and CONSUMER_PRIVATE_KEY; contracts are already deployed
 
 cd indexer   && npm install && npm run dev &
 cd facilitator && npm install && npm run dev &
-cd dashboard   && npm install && npm run dev   # → http://localhost:3000
+cd dashboard   && npm install && npm run dev   # -> http://localhost:3000
 ```
 
 See [AGENTS.md](./AGENTS.md) for the full runbook, Makefile targets, and known gotchas.

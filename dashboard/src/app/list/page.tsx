@@ -172,11 +172,10 @@ export default function ListPage() {
             List your service in the Bazaar
           </h1>
           <p style={{ color: 'var(--lf-ink-2)', fontSize: 15, marginTop: 12, maxWidth: 600 }}>
-            Three steps. Free tier costs nothing. Reputation is automatic — no self-reporting, no paid rankings.
+            Three steps. Free tier costs nothing. Reputation is automatic; no self-reporting, no paid rankings.
           </p>
         </div>
 
-        {/* Step indicators */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 40, borderBottom: '1px solid var(--lf-border)' }}>
           {['Service Details', 'Pricing & Tier', 'Connect & Register'].map((t, i) => {
             const n = i + 1
@@ -211,7 +210,6 @@ export default function ListPage() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 56 }}>
-          {/* FORM */}
           <div>
             {step === 1 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -357,7 +355,6 @@ export default function ListPage() {
             </div>
           </div>
 
-          {/* LIVE PREVIEW */}
           <div>
             <div className="t-label" style={{ marginBottom: 16 }}>Live preview</div>
             <div style={{ padding: 24, background: 'var(--lf-surface-2)', borderRadius: 6, border: '1px dashed var(--lf-border-strong)' }}>

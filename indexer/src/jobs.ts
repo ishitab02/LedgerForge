@@ -105,7 +105,7 @@ function findSkill(
 ): SkillRecord | null {
   const byId = skills[Number(skillId)];
   if (byId) return byId;
-  // Fallback: most recent active skill for this provider
+  // fallback to latest skill for this provider
   const matches = Object.values(skills).filter(
     (s) => s.owner.toLowerCase() === provider.toLowerCase(),
   );
@@ -146,7 +146,7 @@ async function fetchEscrowJobCreated(
       });
       out.push(...(logs as Log[]));
     } catch (err) {
-      console.warn(`[Jobs] JobCreated getLogs ${cursor}-${end}:`, (err as Error).message);
+      console.warn(`job created logs ${cursor}-${end}:`, (err as Error).message);
     }
     cursor = end + 1n;
   }
@@ -174,7 +174,7 @@ async function fetchEscrowJobCompleted(
       });
       out.push(...(logs as Log[]));
     } catch (err) {
-      console.warn(`[Jobs] JobCompleted getLogs ${cursor}-${end}:`, (err as Error).message);
+      console.warn(`job completed logs ${cursor}-${end}:`, (err as Error).message);
     }
     cursor = end + 1n;
   }
@@ -261,7 +261,6 @@ export async function scanJobs(): Promise<JobRecord[]> {
     fetchEscrowJobCompleted(escrow, fromBlock, latestBlock),
   ]);
 
-  // Index completed jobs by jobId for quick lookup
   const completedByJobId = new Map<string, JobCompletedDecoded>();
   for (const log of completedLogs) {
     const d = decodeJobCompleted(log);
@@ -280,9 +279,9 @@ export async function scanJobs(): Promise<JobRecord[]> {
     const completed = completedByJobId.get(created.jobId.toString());
 
     const tokenMeta = tokenInfo(created.token);
-    if (!tokenMeta) continue; // unknown payment token
+    if (!tokenMeta) continue;
 
-    // Resolve real consumer: prefer jobSpecURI (encoded by settler), fallback to on-chain `consumer`
+    // prefer the consumer encoded by settler
     let realConsumer = created.consumer;
     try {
       const job = await publicClient.readContract({
@@ -295,7 +294,7 @@ export async function scanJobs(): Promise<JobRecord[]> {
       if (fromURI && isAddress(fromURI)) {
         realConsumer = getAddress(fromURI) as `0x${string}`;
       }
-    } catch { /* getJob failed; keep on-chain consumer */ }
+    } catch { /* keep on-chain consumer */ }
 
     const ts = await getBlockTimestamp(created.blockNumber);
     const skillRecord = findSkill(created.skillId, created.provider, skills);
@@ -336,7 +335,7 @@ export async function scanJobs(): Promise<JobRecord[]> {
     );
     const trimmed = merged.slice(0, 1000);
     saveJobsDb(trimmed);
-    console.log(`[Jobs] Indexed ${newJobs.length} new escrow job(s); total=${trimmed.length}`);
+    console.log(`indexed ${newJobs.length} jobs total=${trimmed.length}`);
     return trimmed;
   }
 
@@ -347,7 +346,7 @@ export async function pollJobs(): Promise<void> {
   try {
     await scanJobs();
   } catch (err) {
-    console.error("[Jobs] poll error:", (err as Error).message);
+    console.error("job poll error:", (err as Error).message);
   }
 }
 

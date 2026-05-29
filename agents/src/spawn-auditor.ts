@@ -1,9 +1,4 @@
-/**
- * LedgerForge Spawn Auditor
- *
- * AI DevTools demo: pays Spawn Protocol lineage, context, and decision-hash
- * skills to produce an APPROVE / BLOCK / NEEDS_REVIEW deployment audit.
- */
+// spawn auditor: pays lineage skills and writes an audit digest
 import "dotenv/config";
 import { getAddress, type Address, type Hex } from "viem";
 import {
@@ -239,7 +234,7 @@ async function main(): Promise<void> {
   const ready = await runtime.preflight(3);
   if (ready) {
     console.log("");
-    console.log("[" + new Date().toISOString().slice(11, 19) + "] --- Step 1/3 - lineage and failure analysis ---");
+    console.log("[" + new Date().toISOString().slice(11, 19) + "] lineage and failure analysis");
     failureAnalysis = await runtime.pay<unknown>("spawn failure analysis", SKILLS.failureAnalyst, {
       query: { lineageKey: SPAWN_CONFIG.lineageKey, generation: SPAWN_CONFIG.generation },
     });
@@ -248,7 +243,7 @@ async function main(): Promise<void> {
     });
 
     console.log("");
-    console.log("[" + new Date().toISOString().slice(11, 19) + "] --- Step 2/3 - on-chain decision hash verification ---");
+    console.log("[" + new Date().toISOString().slice(11, 19) + "] decision hash verification");
     verifier = await runtime.pay<unknown>("decision hash verification", SKILLS.decisionVerifier, {
       query: {
         contractAddress: SPAWN_CONFIG.contractAddress,
@@ -257,7 +252,7 @@ async function main(): Promise<void> {
     });
 
     console.log("");
-    console.log("[" + new Date().toISOString().slice(11, 19) + "] --- Step 3/3 - audit verdict ---");
+    console.log("[" + new Date().toISOString().slice(11, 19) + "] audit verdict");
     decision = decideAudit({
       failureAnalysis,
       lineageContext,

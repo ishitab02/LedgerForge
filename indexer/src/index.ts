@@ -26,7 +26,7 @@ async function sleep(ms: number): Promise<void> {
 
 async function sync(): Promise<void> {
   if (!registryIsConfigured()) {
-    console.warn("[Indexer] SKILL_REGISTRY_ADDRESS not set; skipping chain sync");
+    console.warn("no registry address, skipping sync");
     return;
   }
 
@@ -39,7 +39,7 @@ async function sync(): Promise<void> {
     await sleep(100);
   }
 
-  console.log(`[Indexer] Synced ${total} skills at ${new Date().toISOString()}`);
+  console.log(`synced ${total} skills at ${new Date().toISOString()}`);
 }
 
 void sync();
@@ -140,5 +140,5 @@ app.get("/health", (_req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`[Indexer] Bazaar API running on port ${PORT}`);
+  console.log(`bazaar api listening on ${PORT}`);
 });

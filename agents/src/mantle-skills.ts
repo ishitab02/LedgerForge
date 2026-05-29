@@ -25,7 +25,6 @@ const USDC_ADDRESS = (
   process.env.USDC_ADDRESS ?? "0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9"
 ) as Address;
 
-// Aave V3 Pool on Mantle mainnet
 const AAVE_V3_POOL_ADDRESS = "0xCFa5aE7c2CE8Fadc6426C1ff872cA45378Fb7cF3" as const;
 
 const KNOWN_TOKENS: Record<string, Address> = {
@@ -41,7 +40,7 @@ interface MantleSkillDef {
   priceUsdcUnits: bigint;
   requiresEscrow: boolean;
   metadataURI: string;
-  tier: number; // BazaarListings enum: PRO=0, BASIC=1, FREE=2
+  tier: number;
 }
 
 interface RegisteredMantleSkill extends MantleSkillDef {
@@ -150,7 +149,7 @@ const MANTLE_SKILLS: MantleSkillDef[] = [
     name: "mantle-tvl-monitor",
     version: "1.0.0",
     description:
-      "Returns current TVL for the Mantle chain and the top 10 protocols by TVL. Data sourced from DeFiLlama — no API key required.",
+      "Returns current TVL for the Mantle chain and the top 10 protocols by TVL. Data sourced from DeFiLlama; no API key required.",
     endpointPath: "/mantle-tvl-monitor",
     priceUsdcUnits: 200_000n,
     requiresEscrow: false,
@@ -244,8 +243,6 @@ function json(res: ServerResponse, statusCode: number, body: unknown): void {
 function accessTokenIsValid(req: IncomingMessage): boolean {
   return (req.headers.authorization ?? "").startsWith("Bearer settled:");
 }
-
-// ── Skill implementations ─────────────────────────────────────────────────────
 
 async function getMantleTvl() {
   const [chainsRes, protocolsRes] = await Promise.all([
@@ -485,12 +482,10 @@ async function getHackathonProjects(query: string, limitStr: string): Promise<un
   }
 }
 
-// ── HTTP server ───────────────────────────────────────────────────────────────
-
 export function startMantleSkillServer(): void {
   const server = createServer(async (req, res) => {
     try {
-      // CORS preflight — required for browser fetch with Authorization header
+      // browser preflight for auth headers
       if (req.method === "OPTIONS") {
         res.writeHead(204, {
           "access-control-allow-origin": "*",
@@ -590,12 +585,10 @@ export function startMantleSkillServer(): void {
   });
 
   server.listen(MANTLE_SKILL_PORT, () => {
-    console.log(`[MantleSkills] Server running on http://localhost:${MANTLE_SKILL_PORT}`);
-    console.log(`[MantleSkills] Endpoints are gated by LedgerForge access tokens`);
+    console.log(`mantle skills listening on http://localhost:${MANTLE_SKILL_PORT}`);
+    console.log("endpoints require LedgerForge access tokens");
   });
 }
-
-// ── Registration ──────────────────────────────────────────────────────────────
 
 export async function registerMantleSkills(): Promise<RegisteredMantleSkill[]> {
   const skillRegistryAddress = requiredAddress("SKILL_REGISTRY_ADDRESS");
@@ -650,7 +643,7 @@ export async function registerMantleSkills(): Promise<RegisteredMantleSkill[]> {
     });
 
     console.log(
-      `Registered skill ${index + 1}: ${skill.name} | skillId: ${skillId} | tx: ${registrationTxHash}`,
+      `registered skill ${index + 1}: ${skill.name} id=${skillId} tx=${registrationTxHash}`,
     );
     console.log(`  registration: ${txLink(registrationTxHash)}`);
     console.log(`  listing:      ${txLink(listingTxHash)}`);
@@ -664,7 +657,7 @@ if (process.argv.includes("--serve")) {
   startMantleSkillServer();
 } else {
   registerMantleSkills().catch((err) => {
-    console.error(`[MantleSkills] Registration failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`registration failed: ${err instanceof Error ? err.message : String(err)}`);
     process.exitCode = 1;
   });
 }

@@ -741,9 +741,8 @@ function printScorecard(round: number, timestamp: string, outcomes: PersonaOutco
     { pass: 0, warn: 0, fail: 0 },
   );
 
-  console.log("═══════════════════════════════════════════════════");
-  console.log(` ROUND ${round}  |  ${timestamp}`);
-  console.log("═══════════════════════════════════════════════════");
+  console.log("");
+  console.log(`round ${round} ${timestamp}`);
 
   for (const outcome of outcomes) {
     const s = summary(outcome.results);
@@ -753,10 +752,8 @@ function printScorecard(round: number, timestamp: string, outcomes: PersonaOutco
     }
   }
 
-  console.log("───────────────────────────────────────────────────");
   console.log(` Total      PASS:${roundTotals.pass} WARN:${roundTotals.warn} FAIL:${roundTotals.fail}`);
   console.log(` Cumulative PASS:${cumulative.pass} WARN:${cumulative.warn} FAIL:${cumulative.fail}`);
-  console.log("═══════════════════════════════════════════════════");
 }
 
 async function main(): Promise<void> {
@@ -790,6 +787,6 @@ async function main(): Promise<void> {
 }
 
 void main().catch((err) => {
-  console.error(`[client-simulator] Fatal error: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+  console.error(`fatal error: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
   process.exitCode = 1;
 });

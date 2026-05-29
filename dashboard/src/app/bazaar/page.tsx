@@ -53,7 +53,6 @@ export default function BazaarPage() {
           </div>
         </div>
 
-        {/* FILTER BAR */}
         <div style={{ marginBottom: 32 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <div style={{ flex: '1 1 280px', position: 'relative' }}>
@@ -121,7 +120,6 @@ export default function BazaarPage() {
           </div>
         </div>
 
-        {/* GRID */}
         {loading ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, paddingBottom: 80 }}>
             {[1, 2, 3, 4, 5, 6].map((i) => (

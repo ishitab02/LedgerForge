@@ -47,7 +47,6 @@ function ReputationChart({ values, avg }: { values: number[]; avg: number }) {
         display: 'flex', alignItems: 'flex-end', gap: 3,
         paddingTop: 10, borderBottom: '1px solid var(--lf-border)',
       }}>
-        {/* avg line */}
         <div style={{
           position: 'absolute', left: 0, right: 0,
           bottom: `${(avg / 100) * (chartH - 10)}px`,
@@ -61,7 +60,6 @@ function ReputationChart({ values, avg }: { values: number[]; avg: number }) {
             avg {avg}
           </span>
         </div>
-        {/* y-axis */}
         <div style={{
           position: 'absolute', left: -28, top: 0, bottom: 0,
           width: 24, display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
@@ -220,7 +218,6 @@ function TryItPanel({ skill, txHash }: { skill: Skill; txHash: string | null }) 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Endpoint + curl */}
       <div className="card card-pad-sm">
         <div className="t-label" style={{ marginBottom: 10 }}>Endpoint</div>
         <div style={{
@@ -256,7 +253,6 @@ function TryItPanel({ skill, txHash }: { skill: Skill; txHash: string | null }) 
         </div>
       </div>
 
-      {/* Payload editor + run */}
       <div className="card card-pad-sm">
         <div className="t-label" style={{ marginBottom: 8 }}>Request payload (JSON)</div>
         <textarea
@@ -285,7 +281,6 @@ function TryItPanel({ skill, txHash }: { skill: Skill; txHash: string | null }) 
         </button>
       </div>
 
-      {/* Response */}
       {(running || response) && (
         <div className="card card-pad-sm">
           <div className="t-label" style={{ marginBottom: 8 }}>Response</div>
@@ -372,7 +367,6 @@ export default function SkillDetailPage() {
       )}
 
       <div className="container" style={{ paddingTop: 32, paddingBottom: 80 }}>
-        {/* Breadcrumb */}
         <div style={{ fontFamily: 'var(--f-mono)', fontSize: 12, color: 'var(--lf-ink-3)', marginBottom: 24 }}>
           <Link href="/bazaar" style={{ cursor: 'pointer' }}>The Bazaar</Link>
           <span style={{ margin: '0 8px' }}>/</span>
@@ -380,9 +374,7 @@ export default function SkillDetailPage() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 48 }}>
-          {/* LEFT */}
           <div>
-            {/* Header */}
             <div style={{ marginBottom: 48 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                 <TierBadge tier={skill.tier} />
@@ -407,7 +399,6 @@ export default function SkillDetailPage() {
               </div>
             </div>
 
-            {/* Reputation chart */}
             <section style={{ marginBottom: 56 }}>
               <SectionHeading
                 kicker="On-chain history"
@@ -433,7 +424,6 @@ export default function SkillDetailPage() {
               )}
             </section>
 
-            {/* Recent jobs */}
             <section>
               <SectionHeading
                 kicker="Execution log"
@@ -443,7 +433,6 @@ export default function SkillDetailPage() {
               <RecentJobsTable jobs={jobs} skillId={skill.id} />
             </section>
 
-            {/* Try It panel — shown after payment */}
             {hasPaid && (
               <section id="try-it" style={{ marginTop: 56 }}>
                 <SectionHeading
@@ -456,7 +445,6 @@ export default function SkillDetailPage() {
             )}
           </div>
 
-          {/* RIGHT — sticky */}
           <aside style={{ position: 'sticky', top: 88, height: 'fit-content', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="card card-pad-sm">
               <div className="t-label" style={{ marginBottom: 12 }}>Access this skill</div>
@@ -469,7 +457,6 @@ export default function SkillDetailPage() {
                 <span style={{ color: 'var(--lf-ink-2)' }}>Payable in USDC on Mantle</span>
               </div>
 
-              {/* Reputation summary */}
               <div style={{ background: 'var(--lf-surface-2)', border: '1px solid var(--lf-border)', borderRadius: 6, padding: 20, display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>

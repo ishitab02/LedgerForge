@@ -35,9 +35,7 @@ export const FACILITATOR_FEE_BPS =
   parseInt(process.env.FACILITATOR_FEE_BPS ?? "20");
 export const PORT = parseInt(process.env.FACILITATOR_PORT ?? "3001");
 
-// Separate wallet that receives provider payouts from escrow.
-// Must be different from OPERATOR_ADDRESS — the escrow contract rejects
-// createJob when provider == msg.sender (the operator).
+// provider wallet must differ from operator
 export const PROVIDER_ADDRESS =
   (process.env.PROVIDER_ADDRESS ??
    process.env.SPAWN_PROVIDER_ADDRESS ??

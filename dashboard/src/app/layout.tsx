@@ -4,7 +4,7 @@ import Nav from '@/components/Nav'
 import { WalletProvider } from '@/context/WalletContext'
 
 export const metadata: Metadata = {
-  title: 'LedgerForge Bazaar — Agent Services on Mantle',
+  title: 'LedgerForge Bazaar - Agent Services on Mantle',
   description:
     'The first reputation-native agent service marketplace on Mantle. Discover, pay for, and rate AI agent services with on-chain reputation.',
 }

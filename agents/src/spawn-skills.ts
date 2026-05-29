@@ -346,7 +346,7 @@ export async function registerSpawnSkills(): Promise<RegisteredSpawnSkill[]> {
     });
 
     console.log(
-      `Registered skill ${index + 1}: ${skill.name} | skillId: ${args.skillId} | tx: ${registrationTxHash}`,
+      `registered skill ${index + 1}: ${skill.name} id=${args.skillId} tx=${registrationTxHash}`,
     );
     console.log(`  registration: ${txLink(registrationTxHash)}`);
     console.log(`  listing:      ${txLink(listingTxHash)}`);
@@ -450,8 +450,8 @@ export function startSpawnSkillServer(): void {
   });
 
   server.listen(SPAWN_AGENT_PORT, () => {
-    console.log(`[SpawnSkills] Server running on http://localhost:${SPAWN_AGENT_PORT}`);
-    console.log(`[SpawnSkills] Endpoints are gated by LedgerForge access tokens`);
+    console.log(`spawn skills listening on http://localhost:${SPAWN_AGENT_PORT}`);
+    console.log("endpoints require LedgerForge access tokens");
   });
 }
 
@@ -460,7 +460,7 @@ if (process.argv.includes("--serve")) {
 } else {
   registerSpawnSkills().catch((err) => {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[SpawnSkills] Registration failed: ${message}`);
+    console.error(`registration failed: ${message}`);
     process.exitCode = 1;
   });
 }

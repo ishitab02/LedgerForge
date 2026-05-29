@@ -8,7 +8,7 @@ export default function MockDataBanner() {
     <div className="mock-banner">
       <span>
         <span style={{ marginRight: 8 }}>⚠</span>
-        Demo mode — Bazaar API unreachable. Showing sample data.
+        Demo mode: Bazaar API unreachable. Showing sample data.
       </span>
       <button onClick={() => setDismissed(true)}>✕</button>
     </div>

@@ -71,7 +71,6 @@ const REGISTRY_ABI = [
   },
 ] as const;
 
-// Maps each localhost base to its Fly.io replacement
 const BASE_URL_MAP: [string, string][] = [
   ["http://localhost:3003", "https://ledgerforge-spawn.fly.dev"],
   ["http://localhost:3004", "https://ledgerforge-spawn.fly.dev"],
@@ -86,10 +85,9 @@ function remapEndpoint(endpoint: string): string | null {
     }
   }
   if (endpoint.includes("localhost") || endpoint.includes("127.0.0.1")) {
-    // Unknown port — flag but don't auto-remap
     return null;
   }
-  return endpoint; // already correct
+  return endpoint;
 }
 
 function txLink(hash: Hex): string {
@@ -167,11 +165,11 @@ async function main() {
     const newEndpoint = remapEndpoint(endpoint);
 
     if (newEndpoint === null) {
-      skipped.push({ skillId: i, endpoint, reason: "unknown localhost port — manual fix needed" });
+      skipped.push({ skillId: i, endpoint, reason: "unknown localhost port; manual fix needed" });
       continue;
     }
     if (newEndpoint === endpoint) {
-      console.log(`  skill ${i}: already correct → ${endpoint}`);
+      console.log(`  skill ${i}: already correct -> ${endpoint}`);
       continue;
     }
 

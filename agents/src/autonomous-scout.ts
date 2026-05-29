@@ -1,10 +1,4 @@
-/**
- * LedgerForge Autonomous Scout
- *
- * Pays live LedgerForge skills through @ledgerforge/x402-mantle, compares
- * Byreal pool yield against Aave USDC, and writes markdown + JSON proof
- * artifacts. It recommends only; it does not trade.
- */
+// scout agent: pays skills and writes a defi decision digest
 import "dotenv/config";
 import {
   DemoRuntime,
@@ -268,17 +262,17 @@ async function main(): Promise<void> {
   const ready = await runtime.preflight(6);
   if (ready) {
     log("");
-    log("--- Step 1/4 - scan market (3 paid skills, sequenced) ---");
+    log("scan market (3 paid skills, sequenced)");
     topPools = await runtime.pay<unknown>("market scan: byreal top pools", SKILLS.topPools, { query: { sortField: "apr24h", pageSize: "3" } });
     aaveRates = await runtime.pay<unknown>("market scan: aave rates", SKILLS.aaveRates, { query: { asset: "USDC" } });
     prices = await runtime.pay<unknown>("market scan: token prices", SKILLS.tokenPrices, { query: { tokens: "USDC,USDe" } });
 
     log("");
-    log("--- Step 2/4 - gas estimate (1 paid skill) ---");
+    log("gas estimate (1 paid skill)");
     gas = await runtime.pay<unknown>("gas estimate", SKILLS.gasOracle);
 
     log("");
-    log("--- Step 3/4 - decision ---");
+    log("decision");
     try {
       decision = decide({ topPools, aaveRates, gas });
     } catch (err) {
@@ -295,7 +289,7 @@ async function main(): Promise<void> {
 
     if (decision.action === "ENTER_POOL") {
       log("");
-      log("--- Step 4/4 - model the swap (1 paid skill) ---");
+      log("model the swap (1 paid skill)");
       swapPreview = await runtime.pay<unknown>("swap preview", SKILLS.swapPreview, {
         body: {
           walletAddress: runtime.provider.address,
@@ -307,7 +301,7 @@ async function main(): Promise<void> {
       });
     } else {
       log("");
-      log("--- Step 4/4 - skipped (no rotation recommended) ---");
+      log("swap skipped (no rotation recommended)");
     }
   }
 

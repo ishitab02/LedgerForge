@@ -149,8 +149,6 @@ const publicClient = createPublicClient({
   transport: http(MANTLE_RPC),
 });
 
-// ── Input sanitization ────────────────────────────────────────────────────────
-
 const SOLANA_ADDR_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const COIN_RE = /^[A-Z0-9]{1,10}$/;
 const AMOUNT_RE = /^[0-9]+(\.[0-9]+)?$/;
@@ -164,8 +162,6 @@ function validated(value: string, pattern: RegExp, name: string): string {
   return value;
 }
 
-// ── CLI helper ────────────────────────────────────────────────────────────────
-
 function runCLI(bin: string, args: string, timeoutMs = 15000): unknown {
   const raw = execSync(`${bin} ${args} -o json`, {
     timeout: timeoutMs,
@@ -177,8 +173,6 @@ function runCLI(bin: string, args: string, timeoutMs = 15000): unknown {
   if (start === -1) throw new Error(`No JSON in CLI output: ${raw.slice(0, 300)}`);
   return JSON.parse(raw.slice(start));
 }
-
-// ── Skill implementations ────────────────────────────────────────────────────
 
 function getPoolAnalysis(poolAddress: string): unknown {
   const addr = validated(poolAddress, SOLANA_ADDR_RE, "poolAddress");
@@ -238,8 +232,6 @@ function getPerpsSignals(coin: string): unknown {
   return runCLI(PERPS_BIN, `signal scan ${c}`, 20000);
 }
 
-// ── HTTP helpers ──────────────────────────────────────────────────────────────
-
 function json(res: ServerResponse, statusCode: number, body: unknown): void {
   res.writeHead(statusCode, {
     "content-type": "application/json",
@@ -268,8 +260,6 @@ function readBody(req: IncomingMessage): Promise<unknown> {
     req.on("error", reject);
   });
 }
-
-// ── HTTP server ───────────────────────────────────────────────────────────────
 
 export function startByrealSkillServer(): void {
   const server = createServer(async (req, res) => {
@@ -403,14 +393,12 @@ export function startByrealSkillServer(): void {
   });
 
   server.listen(BYREAL_SKILL_PORT, () => {
-    console.log(`[ByrealSkills] Server running on http://localhost:${BYREAL_SKILL_PORT}`);
-    console.log(`[ByrealSkills] RealClaw bin: ${REALCLAW_BIN}`);
-    console.log(`[ByrealSkills] Perps bin:    ${PERPS_BIN}`);
-    console.log(`[ByrealSkills] Endpoints gated by LedgerForge access tokens`);
+    console.log(`byreal skills listening on http://localhost:${BYREAL_SKILL_PORT}`);
+    console.log(`realclaw bin: ${REALCLAW_BIN}`);
+    console.log(`perps bin: ${PERPS_BIN}`);
+    console.log("endpoints require LedgerForge access tokens");
   });
 }
-
-// ── Registration ──────────────────────────────────────────────────────────────
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -488,7 +476,7 @@ export async function registerByrealSkills(): Promise<RegisteredByrealSkill[]> {
     });
 
     console.log(
-      `Registered skill ${index + 1}: ${skill.name} | skillId: ${skillId} | tx: ${registrationTxHash}`,
+      `registered skill ${index + 1}: ${skill.name} id=${skillId} tx=${registrationTxHash}`,
     );
     console.log(`  registration: ${txLink(registrationTxHash)}`);
     console.log(`  listing:      ${txLink(listingTxHash)}`);
@@ -503,7 +491,7 @@ if (process.argv.includes("--serve")) {
 } else {
   registerByrealSkills().catch((err) => {
     console.error(
-      `[ByrealSkills] Registration failed: ${err instanceof Error ? err.message : String(err)}`,
+      `registration failed: ${err instanceof Error ? err.message : String(err)}`,
     );
     process.exitCode = 1;
   });

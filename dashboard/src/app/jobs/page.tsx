@@ -63,7 +63,6 @@ export default function JobsPage() {
       {isMockData && <MockDataBanner />}
 
       <div className="container" style={{ paddingTop: 32, paddingBottom: 80 }}>
-        {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
           marginBottom: 32, paddingBottom: 24, borderBottom: '1px solid var(--lf-border)',
@@ -91,7 +90,6 @@ export default function JobsPage() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 32 }}>
-          {/* LEFT — TABLE */}
           <div>
             {jobs.some((j) => j.confirmed) && (
               <div style={{
@@ -168,7 +166,6 @@ export default function JobsPage() {
               </div>
             )}
 
-            {/* Waiting state */}
             <div style={{
               marginTop: 24, padding: '40px 24px',
               border: '1px dashed var(--lf-border)', borderRadius: 6, textAlign: 'center',
@@ -188,9 +185,7 @@ export default function JobsPage() {
             </div>
           </div>
 
-          {/* RIGHT — SIDEBAR */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Total volume */}
             <div className="card card-pad-sm">
               <div className="t-label" style={{ marginBottom: 12 }}>Total volume</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
@@ -208,7 +203,6 @@ export default function JobsPage() {
               </div>
             </div>
 
-            {/* Top skill */}
             {topSkill && (
               <div className="card card-pad-sm">
                 <div className="t-label" style={{ marginBottom: 12 }}>Top skill</div>
@@ -229,7 +223,6 @@ export default function JobsPage() {
               </div>
             )}
 
-            {/* Network status */}
             <div className="card card-pad-sm">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                 <LiveDot />

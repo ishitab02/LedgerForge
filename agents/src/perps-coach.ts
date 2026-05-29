@@ -1,10 +1,4 @@
-/**
- * LedgerForge Perps Coach
- *
- * Sponsor-focused demo: pays Byreal perps signals for a watchlist of positions,
- * adds settlement-token and gas context, and writes HOLD / TAKE_PROFIT / REDUCE /
- * AVOID coaching decisions with on-chain payment proof.
- */
+// perps coach: pays byreal signals and writes a position digest
 import "dotenv/config";
 import {
   DemoRuntime,
@@ -211,7 +205,7 @@ async function main(): Promise<void> {
   const ready = await runtime.preflight(PERPS_CONFIG.positions.length + 2);
   if (ready) {
     console.log("");
-    console.log("[" + new Date().toISOString().slice(11, 19) + "] --- Step 1/3 - perps scans ---");
+    console.log("[" + new Date().toISOString().slice(11, 19) + "] perps scans");
     for (const position of PERPS_CONFIG.positions) {
       signals[position.coin] = await runtime.pay<unknown>(
         `perps signal: ${position.coin}`,
@@ -221,12 +215,12 @@ async function main(): Promise<void> {
     }
 
     console.log("");
-    console.log("[" + new Date().toISOString().slice(11, 19) + "] --- Step 2/3 - settlement and gas context ---");
+    console.log("[" + new Date().toISOString().slice(11, 19) + "] settlement and gas context");
     prices = await runtime.pay<unknown>("settlement token prices", SKILLS.tokenPrices, { query: { tokens: "USDC,USDe" } });
     gas = await runtime.pay<unknown>("gas oracle", SKILLS.gasOracle);
 
     console.log("");
-    console.log("[" + new Date().toISOString().slice(11, 19) + "] --- Step 3/3 - coaching decisions ---");
+    console.log("[" + new Date().toISOString().slice(11, 19) + "] coaching decisions");
     for (const position of PERPS_CONFIG.positions) {
       const decision = decidePosition(position, signals[position.coin]);
       decisions.push(decision);

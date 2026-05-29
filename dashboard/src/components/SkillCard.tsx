@@ -55,7 +55,7 @@ export default function SkillCard({ skill, onUse }: SkillCardProps) {
 
         {isEmpty && (
           <div style={{ fontStyle: 'italic', fontSize: 12, color: 'var(--lf-amber)', marginBottom: 12 }}>
-            New skill — no reputation yet
+            New skill; no reputation yet
           </div>
         )}
 

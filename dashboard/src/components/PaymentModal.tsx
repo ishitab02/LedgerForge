@@ -6,7 +6,6 @@ import ReputationGauge from './ReputationGauge'
 import TierBadge from './TierBadge'
 import AddressChip from './AddressChip'
 
-// Mantle mainnet constants
 const SKILL_REGISTRY = '0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992' as const
 const USDC_ADDRESS   = '0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9' as const
 const USDC_DECIMALS  = 6
@@ -36,12 +35,11 @@ export default function PaymentModal({ skill, onClose, onSuccess }: PaymentModal
   async function handlePay() {
     setErrorMsg('')
 
-    // Connect wallet first if needed
     let payer = account
     if (!payer) {
       try {
         await connect()
-        // connect() updates context — re-read from window since state update is async
+        // context update is async
         const accounts = await window.ethereum!.request({ method: 'eth_accounts' }) as string[]
         payer = accounts[0]
         if (!payer) throw new Error('No account after connect.')
@@ -58,8 +56,7 @@ export default function PaymentModal({ skill, onClose, onSuccess }: PaymentModal
       const facilitatorUrl = process.env.NEXT_PUBLIC_FACILITATOR_URL
       if (!facilitatorUrl) throw new Error('NEXT_PUBLIC_FACILITATOR_URL not set.')
 
-      // 1. Fetch payment details from facilitator
-      // Guard: price=0 (indexer not yet exposing price) falls back to 0.05 USDC minimum
+      // default 0.05 if price missing
       const rawAmount = Math.round(skill.price * Math.pow(10, USDC_DECIMALS))
       const amountBaseUnits = String(rawAmount > 0 ? rawAmount : 50_000)
       const detailsRes = await fetch(
@@ -68,7 +65,6 @@ export default function PaymentModal({ skill, onClose, onSuccess }: PaymentModal
       if (!detailsRes.ok) throw new Error(`Could not fetch payment details: HTTP ${detailsRes.status}`)
       const paymentDetails = await detailsRes.json()
 
-      // 2. Build EIP-712 typed data
       const nonce = Math.floor(Math.random() * 1_000_000_000)
       const validBefore = Math.floor(Date.now() / 1000) + 60
 
@@ -108,16 +104,13 @@ export default function PaymentModal({ skill, onClose, onSuccess }: PaymentModal
         },
       }
 
-      // 3. Ask user to sign
       const signature = await window.ethereum!.request({
         method: 'eth_signTypedData_v4',
         params: [payer, JSON.stringify(typedData)],
       }) as `0x${string}`
 
-      // Switch to processing now that signing is done
       setStep('processing')
 
-      // 4. Build payment proof
       const paymentProof = {
         scheme: 'exact' as const,
         network: 'eip155:5000' as const,
@@ -135,7 +128,6 @@ export default function PaymentModal({ skill, onClose, onSuccess }: PaymentModal
         },
       }
 
-      // 5. Submit to facilitator
       const facilitateRes = await fetch(`${facilitatorUrl}/facilitate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -154,7 +146,7 @@ export default function PaymentModal({ skill, onClose, onSuccess }: PaymentModal
       onSuccess?.(hash)
 
     } catch (err: unknown) {
-      // User rejected the signature — go back to review
+      // rejected signature returns to review
       if (err instanceof Error && err.message.toLowerCase().includes('user rejected')) {
         setErrorMsg('Signature rejected. Hit "Sign payment" again when ready.')
         setStep('review')
@@ -209,8 +201,6 @@ export default function PaymentModal({ skill, onClose, onSuccess }: PaymentModal
     </div>
   )
 }
-
-// ─── Sub-steps ────────────────────────────────────────────────────────────────
 
 function StepReview({ skill, fee, providerCut, connected, account, onPay, onCancel, connecting }: {
   skill: Skill; fee: string; providerCut: string
@@ -300,7 +290,7 @@ function StepSigning() {
         Signing EIP-712 payment intent…
       </h3>
       <p style={{ color: 'var(--lf-ink-3)', fontSize: 13, margin: '0 0 24px', lineHeight: 1.5 }}>
-        Check your wallet — a signature request has been sent.<br />
+        Check your wallet; a signature request has been sent.<br />
         No gas required. No tokens moved yet.
       </p>
       <div style={{

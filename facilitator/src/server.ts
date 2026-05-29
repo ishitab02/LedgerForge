@@ -64,7 +64,6 @@ app.get("/health", (_req, res) => {
   });
 });
 
-// Services call this to get payment requirements for a resource
 app.get("/payment-details", (req, res) => {
   const { resource, skillId, amount, asset } = req.query;
 
@@ -83,7 +82,6 @@ app.get("/payment-details", (req, res) => {
   });
 });
 
-// Core facilitation endpoint — verify EIP-712 proof, then settle via transferFrom
 app.post("/facilitate", async (req, res) => {
   const body = req.body as FacilitateRequest;
 
@@ -109,7 +107,7 @@ app.post("/facilitate", async (req, res) => {
     const result = await settlePayment(body.paymentDetails, body.paymentProof);
 
     console.log(
-      `[Facilitator] Settled jobId=${result.escrowJobId} via escrow | tx=${result.settlementTxHash} | skill=${body.paymentDetails.skillId}`
+      `settled job=${result.escrowJobId} skill=${body.paymentDetails.skillId} tx=${result.settlementTxHash}`
     );
 
     res.json({
@@ -126,12 +124,11 @@ app.post("/facilitate", async (req, res) => {
     } as FacilitateResponse);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[Facilitator] Settlement error:", message);
+    console.error("settlement error:", message);
     res.status(500).json({ success: false, error: message } as FacilitateResponse);
   }
 });
 
-// Skill registration — operator wallet registers on behalf of user
 app.post("/register", async (req, res) => {
   const { name, version, endpoint, price, escrow, metadataUri, tier } = req.body as {
     name?: string; version?: string; endpoint?: string;
@@ -174,7 +171,6 @@ app.post("/register", async (req, res) => {
       } catch { /* skip unparseable logs */ }
     }
 
-    // List on bazaar for non-FREE tiers
     const bazaarAddress = process.env.BAZAAR_LISTINGS_ADDRESS as `0x${string}` | undefined;
     if (bazaarAddress && tierUint8 < 2 && skillId !== "0") {
       try {
@@ -186,25 +182,23 @@ app.post("/register", async (req, res) => {
         });
         await publicClient.waitForTransactionReceipt({ hash: listTx });
       } catch (err) {
-        console.warn("[Facilitator] Bazaar listing failed (non-blocking):", err);
+        console.warn("bazaar listing failed:", err);
       }
     }
 
-    console.log(`[Facilitator] Registered skill: ${name} | skillId: ${skillId} | tx: ${txHash}`);
+    console.log(`registered skill=${name} id=${skillId} tx=${txHash}`);
     res.json({ skillId, txHash });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[Facilitator] Registration error:", message);
+    console.error("registration error:", message);
     res.status(500).json({ error: message });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(
-    `[Facilitator] LedgerForge x402 facilitator running on port ${PORT}`
-  );
-  console.log(`[Facilitator] Network: Mantle mainnet (chainId 5000)`);
-  console.log(`[Facilitator] Health: http://localhost:${PORT}/health`);
+  console.log(`facilitator listening on ${PORT}`);
+  console.log("network: Mantle mainnet (chainId 5000)");
+  console.log(`health: http://localhost:${PORT}/health`);
 });
 
 export default app;

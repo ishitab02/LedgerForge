@@ -116,9 +116,7 @@ export async function settlePayment(
   const operator = walletClient.account.address;
   const auth = proof.payload.authorization;
   const totalAmount = BigInt(auth.amount);
-  // x402Escrow.createJob rejects provider==msg.sender. If the dashboard (or any
-  // caller) set auth.to to the operator address, fall back to the configured
-  // PROVIDER_ADDRESS instead so the contract doesn't revert.
+  // contract rejects provider==caller
   const rawProvider = auth.to as `0x${string}`;
   const provider: `0x${string}` =
     rawProvider.toLowerCase() === operator.toLowerCase() && PROVIDER_ADDRESS
@@ -126,10 +124,9 @@ export async function settlePayment(
       : rawProvider;
 
   if (!X402_ESCROW_ADDRESS) {
-    throw new Error("X402_ESCROW_ADDRESS not configured — cannot settle via escrow");
+    throw new Error("X402_ESCROW_ADDRESS not configured; cannot settle via escrow");
   }
 
-  // 1. Pull funds from consumer → operator (uses the EIP-712-authorised allowance)
   const pullTx = await walletClient.writeContract({
     address: auth.token,
     abi: ERC20_ABI,
@@ -137,9 +134,8 @@ export async function settlePayment(
     args: [auth.from, operator, totalAmount],
   });
   await publicClient.waitForTransactionReceipt({ hash: pullTx });
-  console.log(`[Settler] pulled ${totalAmount} from consumer → operator | tx: ${pullTx}`);
+  console.log(`pulled ${totalAmount} tx=${pullTx}`);
 
-  // 2. Ensure operator has approved escrow to spend this token
   const allowance = await publicClient.readContract({
     address: auth.token,
     abi: ERC20_ABI,
@@ -154,12 +150,10 @@ export async function settlePayment(
       args: [X402_ESCROW_ADDRESS, maxUint256],
     });
     await publicClient.waitForTransactionReceipt({ hash: approveTx });
-    console.log(`[Settler] approved escrow=${X402_ESCROW_ADDRESS} for token=${auth.token} | tx: ${approveTx}`);
+    console.log(`approved escrow token=${auth.token} tx=${approveTx}`);
   }
 
-  // 3. Create escrow job — escrow takes custody of `totalAmount`
-  //    The on-chain `consumer` field will be set to msg.sender (operator), so we
-  //    encode the real consumer in jobSpecURI for the indexer to recover.
+  // keep the real consumer available to the indexer
   const jobSpecURI = `x402://skill/${auth.skillId}/consumer/${auth.from.toLowerCase()}/nonce/${auth.nonce}`;
   const createJobTx = await walletClient.writeContract({
     address: X402_ESCROW_ADDRESS,
@@ -192,9 +186,8 @@ export async function settlePayment(
   if (escrowJobId === 0n) {
     throw new Error(`createJob succeeded but JobCreated event not found in tx ${createJobTx}`);
   }
-  console.log(`[Settler] escrow jobId=${escrowJobId} | createJob tx: ${createJobTx}`);
+  console.log(`escrow job=${escrowJobId} tx=${createJobTx}`);
 
-  // 4. Complete job → escrow pays provider (amount - fee), fee to feeRecipient
   const completeTx = await walletClient.writeContract({
     address: X402_ESCROW_ADDRESS,
     abi: X402_ESCROW_ABI,
@@ -202,13 +195,11 @@ export async function settlePayment(
     args: [escrowJobId],
   });
   await publicClient.waitForTransactionReceipt({ hash: completeTx });
-  console.log(`[Settler] completeJob(${escrowJobId}) | tx: ${completeTx}`);
+  console.log(`complete job=${escrowJobId} tx=${completeTx}`);
 
-  // 5. Mark nonce used (after all settlement txs land)
   const nonceKey = `${auth.from.toLowerCase()}:${auth.nonce}`;
   usedNonces.set(nonceKey, Number(auth.validBefore));
 
-  // 6. Local SkillRegistry reputation write
   const score =
     proof.reputationScore !== undefined
       ? Math.max(0, Math.min(100, Math.round(proof.reputationScore)))
@@ -223,13 +214,12 @@ export async function settlePayment(
         args: [BigInt(auth.skillId), score],
       });
       await publicClient.waitForTransactionReceipt({ hash: skillRegistryRepTx });
-      console.log(`[Settler] SkillRegistry.recordJobCompletion(${auth.skillId}, ${score}) | tx: ${skillRegistryRepTx}`);
+      console.log(`rep write skill=${auth.skillId} score=${score} tx=${skillRegistryRepTx}`);
     } catch (err) {
-      console.warn("[Settler] SkillRegistry reputation write failed (non-blocking):", err);
+      console.warn("rep write failed:", err);
     }
   }
 
-  // 7. Canonical ERC-8004 reputation write (best-effort)
   let erc8004Tx: Hex | undefined;
   if (ERC8004_REPUTATION_ADDRESS && auth.skillId) {
     try {
@@ -249,10 +239,10 @@ export async function settlePayment(
         ],
       });
       await publicClient.waitForTransactionReceipt({ hash: erc8004Tx });
-      console.log(`[Settler] ERC-8004 giveFeedback(skillId=${auth.skillId}, score=${score}) | tx: ${erc8004Tx}`);
+      console.log(`erc8004 feedback skill=${auth.skillId} score=${score} tx=${erc8004Tx}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[Settler] ERC-8004 giveFeedback failed (non-blocking): ${msg.slice(0, 200)}`);
+      console.warn(`erc8004 feedback failed: ${msg.slice(0, 200)}`);
     }
   }
 

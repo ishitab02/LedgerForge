@@ -199,24 +199,24 @@ async function main(): Promise<void> {
   const score = skill.reputationScore ?? skill.score ?? 0;
 
   console.log(
-    `[Consumer] Discovered spawn-failure-analyst | score: ${score} | price: ${price} USDC units`,
+    `found spawn-failure-analyst score=${score} price=${price} USDC units`,
   );
-  console.log("[Consumer] Building EIP-712 signed payment intent...");
+  console.log("building eip-712 payment intent...");
   const { paymentDetails, paymentProof } = await buildPaymentProof(skill);
 
-  console.log("[Consumer] Facilitating payment...");
+  console.log("facilitating payment...");
   const facilitated = await facilitatePayment(paymentDetails, paymentProof);
-  console.log(`[Facilitator] Settled: ${facilitated.settlementTxHash}`);
+  console.log(`settled ${facilitated.settlementTxHash}`);
 
   const accessToken = facilitated.accessToken;
   if (!accessToken) throw new Error("Facilitator did not return an access token");
 
   const result = await executeSkill(skill.endpoint, accessToken);
-  console.log(`[Consumer] Skill executed. Result: ${JSON.stringify(result, null, 2)}`);
+  console.log(`skill result: ${JSON.stringify(result, null, 2)}`);
 }
 
 main().catch((err) => {
   const message = err instanceof Error ? err.message : String(err);
-  console.error(`[Consumer] Demo failed: ${message}`);
+  console.error(`demo failed: ${message}`);
   process.exitCode = 1;
 });

@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ============ DESIGN SYSTEM ============ */
-
 :root {
   --lf-bg:        #FAFBF8;
   --lf-surface:   #FFFFFF;
@@ -51,7 +49,6 @@ a { color: inherit; text-decoration: none; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; padding: 0; color: inherit; }
 input, textarea, select { font-family: inherit; font-size: inherit; color: inherit; }
 
-/* ============ TYPE ============ */
 .t-display { font-family: var(--f-display); font-weight: 400; letter-spacing: -0.005em; }
 .t-display-heavy { font-family: var(--f-display); font-weight: 400; letter-spacing: -0.01em; }
 .t-mono { font-family: var(--f-mono); }
@@ -65,7 +62,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
   color: var(--lf-ink-3);
 }
 
-/* ============ NAV ============ */
 .nav {
   position: sticky; top: 0; z-index: 50;
   height: 64px;
@@ -102,7 +98,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 }
 .nav-right { display: flex; gap: 12px; align-items: center; }
 
-/* ============ BUTTONS ============ */
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
   height: 38px; padding: 0 16px;
@@ -138,7 +133,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 .btn-dark:hover { background: #000; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ============ CARDS ============ */
 .card {
   background: var(--lf-surface);
   border: 1px solid var(--lf-border);
@@ -149,7 +143,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 .card-hover { transition: border-color .15s, transform .15s; cursor: pointer; }
 .card-hover:hover { border-color: var(--lf-accent); }
 
-/* ============ STAT CHIPS ============ */
 .chip {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 6px 12px;
@@ -165,7 +158,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 }
 .chip-strong { color: var(--lf-ink); }
 
-/* ============ TIER BADGE ============ */
 .tier {
   display: inline-flex; align-items: center;
   font-family: var(--f-mono-2);
@@ -187,7 +179,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
   letter-spacing: 0.04em;
 }
 
-/* ============ ADDRESS CHIP ============ */
 .addr {
   display: inline-flex; align-items: center; gap: 4px;
   font-family: var(--f-mono);
@@ -222,7 +213,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
-/* ============ LIVE INDICATOR ============ */
 .live-dot {
   display: inline-block;
   width: 8px; height: 8px;
@@ -238,7 +228,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
   100% { box-shadow: 0 0 0 0   rgba(15, 190, 127, 0); }
 }
 
-/* ============ SCORE PILL ============ */
 .score-pill {
   display: inline-flex; align-items: center; justify-content: center;
   font-family: var(--f-mono);
@@ -253,7 +242,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 .score-pill.low  { background: var(--lf-red-bg); color: var(--lf-red); }
 .score-pill.none { background: var(--lf-surface-2); color: var(--lf-ink-3); }
 
-/* ============ INPUTS ============ */
 .input {
   width: 100%;
   height: 42px;
@@ -286,7 +274,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
   font-size: 12px; color: var(--lf-ink-3); margin-top: 6px;
 }
 
-/* ============ FILTER PILLS ============ */
 .pill {
   display: inline-flex; align-items: center;
   height: 32px; padding: 0 14px;
@@ -309,7 +296,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 }
 .pill.accent .dot { background: var(--lf-accent); }
 
-/* ============ TOGGLE ============ */
 .toggle {
   position: relative;
   width: 38px; height: 22px;
@@ -330,7 +316,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 .toggle.on { background: var(--lf-accent); }
 .toggle.on::after { transform: translateX(16px); }
 
-/* ============ MOCK BANNER ============ */
 .mock-banner {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 24px;
@@ -341,7 +326,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 }
 .mock-banner button { color: #92400E; font-size: 14px; padding: 0 6px; }
 
-/* ============ FOOTER DARK CTA ============ */
 .dark-band {
   background: var(--lf-ink);
   color: white;
@@ -366,7 +350,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
   font-size: 17px;
 }
 
-/* ============ PAGE LAYOUT ============ */
 .page { animation: fade .15s ease-out; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 
@@ -389,7 +372,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
   line-height: 1;
 }
 
-/* hero gradient — mint wash top-left */
 .hero-wash {
   background:
     radial-gradient(ellipse 1100px 700px at 20% -20%, rgba(15, 190, 127, 0.10), transparent 60%),
@@ -397,7 +379,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
     var(--lf-bg);
 }
 
-/* ============ STEP TIMELINE ============ */
 .timeline {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -450,7 +431,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 }
 .timeline-step:first-child::after { background: var(--lf-accent); border-color: var(--lf-accent); }
 
-/* ============ TABLES ============ */
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -476,7 +456,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
   background: rgba(15, 190, 127, 0.04);
 }
 
-/* ============ MODAL ============ */
 .modal-overlay {
   position: fixed; inset: 0;
   background: rgba(26, 25, 22, 0.4);
@@ -508,7 +487,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 }
 .modal-close:hover { background: var(--lf-surface-2); color: var(--lf-ink); }
 
-/* ============ SPINNER ============ */
 .spinner {
   width: 28px; height: 28px;
   border: 2px solid var(--lf-border);
@@ -518,7 +496,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ============ PROGRESS BAR (modal steps) ============ */
 .progress-bar {
   display: flex; gap: 6px; margin-bottom: 24px;
 }
@@ -528,7 +505,6 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 .progress-bar .seg.done { background: var(--lf-ink); }
 .progress-bar .seg.active { background: var(--lf-ink); }
 
-/* ============ CHECKMARK ANIMATION ============ */
 .checkmark {
   width: 56px; height: 56px; border-radius: 50%;
   background: var(--lf-accent-bg);
@@ -542,19 +518,16 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 }
 @keyframes drawCheck { to { stroke-dashoffset: 0; } }
 
-/* ============ PULSE DOTS (waiting state) ============ */
 @keyframes pulse-soft {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
 }
 
-/* ============ SCROLLBAR ============ */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--lf-border); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--lf-border-strong); }
 
-/* ============ MOBILE ============ */
 @media (max-width: 768px) {
   .nav { padding: 0 20px; gap: 16px; }
   .nav-links { display: none; }

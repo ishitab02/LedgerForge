@@ -1,9 +1,7 @@
 import { ALLOWED_TOKENS, publicClient } from "./config.js";
 import type { X402PaymentDetails, X402PaymentProof } from "./types.js";
 
-// In-memory nonce store: "address:nonce" -> expiry timestamp.
-// Acceptable for hackathon demo; replace with Redis/SQLite for production.
-// Restarts clear this store, so restart facilitator between demo sessions.
+// nonce store for the demo server
 const usedNonces = new Map<string, number>();
 
 setInterval(() => {

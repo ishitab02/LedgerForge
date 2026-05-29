@@ -116,17 +116,13 @@ export class LedgerForgeClient {
     });
   }
 
-  /** Whether a signer is configured. Required for paying skills. */
   get hasSigner(): boolean {
     return Boolean(this.#walletClient);
   }
 
-  /** The signing address, if a signer is configured. */
   get address(): Address | undefined {
     return this.#account?.address ?? (this.#walletClient?.account?.address as Address | undefined);
   }
-
-  // ─── Discovery ─────────────────────────────────────────────────────────────
 
   async listSkills(filter: ListSkillsFilter = {}): Promise<SkillListing[]> {
     const url = new URL("/skills", this.bazaarUrl);
@@ -155,8 +151,6 @@ export class LedgerForgeClient {
     return (await response.json()) as SkillListing;
   }
 
-  // ─── Payment flow ──────────────────────────────────────────────────────────
-
   async getPaymentChallenge(
     skillId: number,
     overrides: {
@@ -181,10 +175,7 @@ export class LedgerForgeClient {
     return (await response.json()) as PaymentChallenge;
   }
 
-  /**
-   * Sign an EIP-712 payment authorization against the facilitator's challenge.
-   * Requires a signer (privateKey / account / walletClient at construction).
-   */
+  // signs the facilitator's eip-712 challenge
   async signPayment(
     challenge: PaymentChallenge,
     options: {
@@ -244,7 +235,6 @@ export class LedgerForgeClient {
     };
   }
 
-  /** Submit a signed payment to the facilitator and receive a settlement receipt. */
   async facilitate(challenge: PaymentChallenge, proof: PaymentProof): Promise<SettlementReceipt> {
     const response = await fetch(new URL("/facilitate", this.facilitatorUrl), {
       method: "POST",
@@ -288,7 +278,6 @@ export class LedgerForgeClient {
     };
   }
 
-  /** Call a skill endpoint with the access token from a settlement receipt. */
   async callSkill<T = unknown>(
     endpoint: string,
     accessToken: string,
@@ -324,16 +313,12 @@ export class LedgerForgeClient {
     return (await response.json()) as T;
   }
 
-  // ─── Token approvals ──────────────────────────────────────────────────────
-
-  /** Resolve a token symbol or address to a checksummed Address. */
   resolveTokenAddress(token: Address | "USDC" | "USDe"): Address {
     if (token === "USDC") return this.paymentTokens.USDC;
     if (token === "USDe") return this.paymentTokens.USDe;
     return checksumAddress(token);
   }
 
-  /** Current allowance the signer has granted the operator for a token. */
   async getAllowance(token: Address | "USDC" | "USDe", owner?: Address): Promise<bigint> {
     const tokenAddress = this.resolveTokenAddress(token);
     const ownerAddress = owner ?? this.address;
@@ -351,7 +336,6 @@ export class LedgerForgeClient {
     });
   }
 
-  /** Token balance of the signer (or a given owner). */
   async getBalance(token: Address | "USDC" | "USDe", owner?: Address): Promise<bigint> {
     const tokenAddress = this.resolveTokenAddress(token);
     const ownerAddress = owner ?? this.address;
@@ -369,11 +353,7 @@ export class LedgerForgeClient {
     });
   }
 
-  /**
-   * Approve the LedgerForge operator to spend a token. Defaults to max (unlimited)
-   * approval. Required once per token before paying for skills — the facilitator
-   * uses transferFrom to settle.
-   */
+  // approve once per token before paying skills
   async approveOperator(
     token: Address | "USDC" | "USDe",
     amount: bigint | "max" = "max",
@@ -405,12 +385,6 @@ export class LedgerForgeClient {
     };
   }
 
-  // ─── High-level invoke ─────────────────────────────────────────────────────
-
-  /**
-   * Discover, pay, and execute a skill in one call. Returns the skill's response
-   * along with the settlement receipt.
-   */
   async invoke<T = unknown>(skillId: number, options: InvokeOptions = {}): Promise<InvokeResult<T>> {
     const skill = await this.getSkill(skillId);
 
@@ -438,8 +412,6 @@ export class LedgerForgeClient {
 
     return { skillId, skillName: skill.name, output, receipt };
   }
-
-  // ─── Internals ─────────────────────────────────────────────────────────────
 
   private resolveToken(
     token: Address | "USDC" | "USDe" | undefined,

@@ -78,7 +78,6 @@ export default function HomePage() {
     <div className="page">
       {isMockData && <MockDataBanner />}
 
-      {/* HERO */}
       <section className="hero-wash" style={{
         minHeight: 'calc(100vh - 64px)',
         display: 'flex', flexDirection: 'column', justifyContent: 'center',
@@ -108,7 +107,7 @@ export default function HomePage() {
 
             <p style={{ fontSize: 20, lineHeight: 1.5, color: 'var(--lf-ink-2)', maxWidth: 640, margin: '0 0 40px' }}>
               LedgerForge is the first reputation-native agent service marketplace on Mantle.
-              Discover, pay for, and rate AI agent services — with on-chain reputation that compounds automatically on every execution.
+              Discover, pay for, and rate AI agent services with on-chain reputation that compounds automatically on every execution.
             </p>
 
             <div style={{ display: 'flex', gap: 12, marginBottom: 48, flexWrap: 'wrap' }}>
@@ -138,7 +137,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
       <section style={{ padding: '120px 40px' }}>
         <div className="container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 64 }}>
@@ -170,7 +168,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FEATURE CARDS */}
       <section style={{ padding: '0 40px 120px' }}>
         <div className="container">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
@@ -203,10 +200,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* DATA STRIP */}
       <StatsBar stats={stats} />
 
-      {/* DARK CTA */}
       <section className="dark-band">
         <div className="t-label" style={{ color: 'var(--lf-ink-3)', marginBottom: 16 }}>
           Register your first skill
