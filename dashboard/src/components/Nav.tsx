@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useWallet } from '@/context/WalletContext'
 
@@ -13,9 +14,15 @@ export default function Nav() {
 
   return (
     <header className="nav">
-      <Link href="/" className="nav-brand">
-        <span className="wm">LedgerForge</span>
-        <span className="sub">on Mantle</span>
+      <Link href="/" className="nav-brand" style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Image
+          src="/logo-lockup.png"
+          alt="LedgerForge"
+          width={138}
+          height={46}
+          priority
+          style={{ objectFit: 'contain' }}
+        />
       </Link>
 
       <nav className="nav-links">
