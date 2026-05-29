@@ -6,6 +6,7 @@ import {
   X402_ESCROW_ADDRESS,
   FACILITATOR_FEE_BPS,
   ERC8004_REPUTATION_ADDRESS,
+  PROVIDER_ADDRESS,
 } from "./config.js";
 import type { X402PaymentDetails, X402PaymentProof, SettlementResult } from "./types.js";
 import { usedNonces } from "./verifier.js";
@@ -115,7 +116,14 @@ export async function settlePayment(
   const operator = walletClient.account.address;
   const auth = proof.payload.authorization;
   const totalAmount = BigInt(auth.amount);
-  const provider = auth.to as `0x${string}`;
+  // x402Escrow.createJob rejects provider==msg.sender. If the dashboard (or any
+  // caller) set auth.to to the operator address, fall back to the configured
+  // PROVIDER_ADDRESS instead so the contract doesn't revert.
+  const rawProvider = auth.to as `0x${string}`;
+  const provider: `0x${string}` =
+    rawProvider.toLowerCase() === operator.toLowerCase() && PROVIDER_ADDRESS
+      ? PROVIDER_ADDRESS
+      : rawProvider;
 
   if (!X402_ESCROW_ADDRESS) {
     throw new Error("X402_ESCROW_ADDRESS not configured — cannot settle via escrow");

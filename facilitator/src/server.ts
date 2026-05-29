@@ -4,7 +4,7 @@ import helmet from "helmet";
 import { decodeEventLog } from "viem";
 import { verifyPaymentProof } from "./verifier.js";
 import { settlePayment } from "./settler.js";
-import { PORT, getOperatorWalletClient, publicClient, SKILL_REGISTRY_ADDRESS } from "./config.js";
+import { PORT, getOperatorWalletClient, publicClient, SKILL_REGISTRY_ADDRESS, PROVIDER_ADDRESS } from "./config.js";
 import type { FacilitateRequest, FacilitateResponse } from "./types.js";
 
 const REGISTER_SKILL_ABI = [
@@ -75,7 +75,7 @@ app.get("/payment-details", (req, res) => {
     resource: resource ?? "",
     description: "LedgerForge x402 payment on Mantle",
     mimeType: "application/json",
-    payTo: process.env.OPERATOR_ADDRESS ?? "",
+    payTo: PROVIDER_ADDRESS || process.env.OPERATOR_ADDRESS || "",
     maxTimeoutSeconds: 60,
     asset: asset ?? process.env.USDC_ADDRESS,
     skillId: parseInt((skillId as string) ?? "0"),
