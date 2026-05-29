@@ -18,8 +18,8 @@ export default function Nav() {
         <Image
           src="/logo-light-lockup.png"
           alt="LedgerForge"
-          width={138}
-          height={46}
+          width={210}
+          height={69}
           priority
           style={{ objectFit: 'contain' }}
         />
