@@ -17,6 +17,8 @@ export interface SettlementSummary {
   skillRegistryRepTx?: Hex;
   erc8004FeedbackTx?: Hex;
   explorerUrl: string;
+  /** Computed by the composite scorer after output is received. */
+  score?: number;
 }
 
 export type AgentEvent =

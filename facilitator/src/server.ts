@@ -3,7 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import { decodeEventLog } from "viem";
 import { verifyPaymentProof } from "./verifier.js";
-import { settlePayment } from "./settler.js";
+import { settlePayment, scoreJob } from "./settler.js";
 import { PORT, getOperatorWalletClient, publicClient, SKILL_REGISTRY_ADDRESS, PROVIDER_ADDRESS } from "./config.js";
 import type { FacilitateRequest, FacilitateResponse } from "./types.js";
 
@@ -126,6 +126,25 @@ app.post("/facilitate", async (req, res) => {
     const message = err instanceof Error ? err.message : String(err);
     console.error("settlement error:", message);
     res.status(500).json({ success: false, error: message } as FacilitateResponse);
+  }
+});
+
+app.post("/score", async (req, res) => {
+  const { skillId, score } = req.body as { skillId?: unknown; score?: unknown };
+  const id = Number(skillId);
+  const s = Number(score);
+  if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(s)) {
+    res.status(400).json({ error: "skillId (positive int) and score (0-100) are required" });
+    return;
+  }
+  try {
+    const result = await scoreJob(id, s);
+    console.log(`/score skill=${id} score=${s}`);
+    res.json({ success: true, ...result });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("score error:", message);
+    res.status(500).json({ error: message });
   }
 });
 

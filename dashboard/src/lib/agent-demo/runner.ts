@@ -7,6 +7,10 @@ import { LedgerForgeClient, type InvokeResult, type SettlementReceipt } from '@i
 import { type WalletClient, type Hex } from 'viem'
 import type { AgentEvent, SettlementSummary } from './events'
 import type { AgentSpec, AgentStepSpec } from './specs'
+import { scoreOutput } from './scoring'
+
+const FACILITATOR_URL =
+  (process.env.NEXT_PUBLIC_FACILITATOR_URL ?? 'https://ledgerforge-facilitator.fly.dev').replace(/\/$/, '')
 
 /** Async generator pattern lets the UI cancel mid-run by breaking the for-await loop. */
 export async function* runLive<T>(
@@ -69,14 +73,21 @@ async function* invokeStep<T>(
 ): AsyncGenerator<AgentEvent> {
   yield { type: 'step-running', stepIndex: index }
   try {
+    const t0 = Date.now()
     const result: InvokeResult = await client.invoke(step.skillId, {
       recipient: options.provider,
       amount: spec.pricePerCall,
       query: step.args.query,
       body: step.args.body,
     })
+    const latencyMs = Date.now() - t0
     outputs[index] = result.output
-    const settlement = toSettlement(step, result)
+
+    const score = scoreOutput(step.skillId, result.output, latencyMs)
+    // Fire-and-forget: report computed score to facilitator so it gets written on-chain.
+    void reportScore(step.skillId, score)
+
+    const settlement = toSettlement(step, result, score)
     settlements.push(settlement)
     yield {
       type: 'step-settled',
@@ -93,7 +104,7 @@ async function* invokeStep<T>(
   }
 }
 
-function toSettlement(step: AgentStepSpec, result: InvokeResult): SettlementSummary {
+function toSettlement(step: AgentStepSpec, result: InvokeResult, score?: number): SettlementSummary {
   const r: SettlementReceipt = result.receipt
   return {
     skillId: step.skillId,
@@ -105,5 +116,18 @@ function toSettlement(step: AgentStepSpec, result: InvokeResult): SettlementSumm
     skillRegistryRepTx: r.skillRegistryRepTxHash as Hex | undefined,
     erc8004FeedbackTx: r.erc8004FeedbackTxHash as Hex | undefined,
     explorerUrl: r.explorerUrl,
+    score,
+  }
+}
+
+async function reportScore(skillId: number, score: number): Promise<void> {
+  try {
+    await fetch(`${FACILITATOR_URL}/score`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ skillId, score }),
+    })
+  } catch {
+    // non-critical — best-effort score reporting
   }
 }
