@@ -16,7 +16,7 @@ export default function Nav() {
     <header className="nav">
       <Link href="/" className="nav-brand" style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Image
-          src="/logo-lockup.png"
+          src="/logo-light-lockup.png"
           alt="LedgerForge"
           width={138}
           height={46}
