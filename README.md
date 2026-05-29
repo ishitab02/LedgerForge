@@ -94,7 +94,7 @@ All services are live on Mantle Mainnet. No setup required to observe.
 
 ### Proven on-chain: autonomous agent run
 
-The LedgerForge Scout agent (`npm run scout`) ran live on Mantle Mainnet, paying for 5 skills sequentially and writing an ENTER_POOL decision with 85% confidence. Every settlement is verifiable on Mantlescan:
+The LedgerForge Scout agent (`npm run scout`) ran live on Mantle Mainnet, paying for 5 skills sequentially and writing an ENTER_POOL decision with 85% confidence. Every settlement is verifiable with live Mantlescan tx links:
 
 | # | Skill | escrowJobId | `completeJob` tx |
 |---|-------|-------------|-----------------|
@@ -106,7 +106,7 @@ The LedgerForge Scout agent (`npm run scout`) ran live on Mantle Mainnet, paying
 
 Each row = 5 Mantle txs (pull -> createJob -> completeJob -> SkillRegistry rep -> ERC-8004 feedback). One agent run = **25 on-chain transactions**.
 
-Current stats: **15 skills registered · 44+ jobs settled · ~2.25 USDC total revenue** _(as of 2026-05-29; live numbers at [`/stats`](https://ledgerforge-indexer.fly.dev/stats))_
+Current stats: **15 skills registered · 35+ jobs settled · 1.80 USDC total revenue** _(as of 2026-05-29; live numbers at [`/stats`](https://ledgerforge-indexer.fly.dev/stats))_
 
 ---
 
