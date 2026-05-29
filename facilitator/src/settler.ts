@@ -258,6 +258,13 @@ export async function settlePayment(
   };
 }
 
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+function isNonceError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes("nonce") || msg.includes("underpriced") || msg.includes("replacement");
+}
+
 /** Called after a skill execution to write the output-derived score on-chain. */
 export async function scoreJob(
   skillId: number,
@@ -268,43 +275,50 @@ export async function scoreJob(
 
   let skillRegistryRepTx: Hex | undefined;
   if (SKILL_REGISTRY_ADDRESS && skillId) {
-    try {
-      skillRegistryRepTx = await walletClient.writeContract({
-        address: SKILL_REGISTRY_ADDRESS,
-        abi: SKILL_REGISTRY_ABI,
-        functionName: "recordJobCompletion",
-        args: [BigInt(skillId), clamped],
-      });
-      await publicClient.waitForTransactionReceipt({ hash: skillRegistryRepTx });
-      console.log(`score update skill=${skillId} score=${clamped} tx=${skillRegistryRepTx}`);
-    } catch (err) {
-      console.warn("scoreJob recordJobCompletion failed:", err);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        skillRegistryRepTx = await walletClient.writeContract({
+          address: SKILL_REGISTRY_ADDRESS,
+          abi: SKILL_REGISTRY_ABI,
+          functionName: "recordJobCompletion",
+          args: [BigInt(skillId), clamped],
+        });
+        await publicClient.waitForTransactionReceipt({ hash: skillRegistryRepTx });
+        console.log(`score update skill=${skillId} score=${clamped} tx=${skillRegistryRepTx}`);
+        break;
+      } catch (err) {
+        if (isNonceError(err) && attempt < 2) {
+          await sleep(2000 * (attempt + 1));
+          continue;
+        }
+        console.warn("scoreJob recordJobCompletion failed:", err instanceof Error ? err.message.slice(0, 120) : err);
+        break;
+      }
     }
   }
 
   let erc8004Tx: Hex | undefined;
   if (ERC8004_REPUTATION_ADDRESS && skillId) {
-    try {
-      erc8004Tx = await walletClient.writeContract({
-        address: ERC8004_REPUTATION_ADDRESS,
-        abi: ERC8004_REPUTATION_ABI,
-        functionName: "giveFeedback",
-        args: [
-          BigInt(skillId),
-          BigInt(clamped),
-          0,
-          "ledgerforge",
-          "x402-score",
-          "",
-          "",
-          ZERO_BYTES32,
-        ],
-      });
-      await publicClient.waitForTransactionReceipt({ hash: erc8004Tx });
-      console.log(`score erc8004 skill=${skillId} score=${clamped} tx=${erc8004Tx}`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`scoreJob giveFeedback failed: ${msg.slice(0, 200)}`);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        erc8004Tx = await walletClient.writeContract({
+          address: ERC8004_REPUTATION_ADDRESS,
+          abi: ERC8004_REPUTATION_ABI,
+          functionName: "giveFeedback",
+          args: [BigInt(skillId), BigInt(clamped), 0, "ledgerforge", "x402-score", "", "", ZERO_BYTES32],
+        });
+        await publicClient.waitForTransactionReceipt({ hash: erc8004Tx });
+        console.log(`score erc8004 skill=${skillId} score=${clamped} tx=${erc8004Tx}`);
+        break;
+      } catch (err) {
+        if (isNonceError(err) && attempt < 2) {
+          await sleep(2000 * (attempt + 1));
+          continue;
+        }
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`scoreJob giveFeedback failed: ${msg.slice(0, 120)}`);
+        break;
+      }
     }
   }
 

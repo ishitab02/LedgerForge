@@ -18,11 +18,19 @@ export const publicClient = createPublicClient({
   transport: http(),
 });
 
-export function getOperatorWalletClient() {
+function _createOperatorClient() {
   const key = process.env.OPERATOR_PRIVATE_KEY;
   if (!key) throw new Error("OPERATOR_PRIVATE_KEY not set");
   const account = privateKeyToAccount(key as `0x${string}`);
   return createWalletClient({ account, chain: mantleChain, transport: http() });
+}
+
+// Singleton — prevents nonce collisions from concurrent writeContract calls
+// that would each fetch the same pending nonce independently.
+let _operatorWalletClient: ReturnType<typeof _createOperatorClient> | undefined;
+
+export function getOperatorWalletClient(): ReturnType<typeof _createOperatorClient> {
+  return (_operatorWalletClient ??= _createOperatorClient());
 }
 
 export const SKILL_REGISTRY_ADDRESS =
