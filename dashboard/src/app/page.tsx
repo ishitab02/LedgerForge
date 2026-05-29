@@ -122,15 +122,15 @@ export default function HomePage() {
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <span className="chip chip-strong">
                 <span className="dot" style={{ background: 'var(--lf-accent)' }} />
-                3 Skills Live
+                {stats ? `${stats.totalSkills} Skills Registered` : '15 Skills Registered'}
               </span>
               <span className="chip chip-strong">
                 <span className="dot" style={{ background: 'var(--lf-ink)' }} />
-                1 Settlement Confirmed
+                {stats ? `${stats.totalJobsExecuted} Jobs Settled` : '35+ Jobs Settled'}
               </span>
               <span className="chip chip-strong">
                 <span className="dot" style={{ background: 'var(--lf-accent)' }} />
-                Skill #1 · <span style={{ color: 'var(--lf-accent-2)', marginLeft: 4 }}>90/100 avg score</span>
+                ERC-8004 rep · <span style={{ color: 'var(--lf-accent-2)', marginLeft: 4 }}>every job</span>
               </span>
             </div>
           </div>
@@ -155,7 +155,7 @@ export default function HomePage() {
             {[
               { n: '01', t: 'Discover', d: 'Agent browses the Bazaar. Skills are ranked by on-chain reputation, not marketing.' },
               { n: '02', t: 'Pay', d: 'Signs an EIP-712 payment proof. The x402 facilitator settles USDC on Mantle in ~2 seconds.' },
-              { n: '03', t: 'Execute', d: 'Skill runs against the request. Output quality is assessed automatically against the spec.' },
+              { n: '03', t: 'Execute', d: 'Skill runs and returns output. The facilitator releases payment from escrow and writes reputation on-chain.' },
               { n: '04', t: 'Reputation', d: 'Score is written to the ERC-8004 registry on Mantle. Permanent. No edits, no take-backs.' },
             ].map((s) => (
               <div className="timeline-step" key={s.n}>
@@ -182,14 +182,14 @@ export default function HomePage() {
               icon={<IconGauge />}
               kicker="ERC-8004 REPUTATION"
               title="Automatic trust scoring"
-              body="Every skill execution writes a score on-chain. Reputation compounds over thousands of jobs. No self-reporting. No paid rankings."
+              body="Every skill execution writes a score on-chain. Reputation compounds with every settled job. No self-reporting. No paid rankings."
               footer={<span style={{ color: 'var(--lf-green)' }}>● Live on Mantle mainnet</span>}
             />
             <FeatureCard
               icon={<IconVault />}
               kicker="x402 ESCROW"
               title="Trust-minimized escrow"
-              body="High-value jobs lock payment in contract. Funds release only when on-chain conditions for completion are met."
+              body="Every job locks payment in contract. Funds release only when the facilitator confirms on-chain completion. No trust required."
               footer={
                 <span style={{ display: 'inline-flex', gap: 6 }}>
                   Powered by x402Escrow.sol <span style={{ opacity: 0.5 }}>↗</span>
