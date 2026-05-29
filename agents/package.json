@@ -25,7 +25,7 @@
   "dependencies": {
     "@byreal-io/byreal-cli-realclaw": "^0.4.5",
     "@byreal-io/byreal-perps-cli": "^0.3.7",
-    "@ledgerforge/x402-mantle": "^0.1.0",
+    "@ishitaaaaw/x402-mantle": "^0.1.0",
     "dotenv": "^16.4.5",
     "viem": "^2.21.0"
   },

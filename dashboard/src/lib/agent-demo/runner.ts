@@ -3,7 +3,7 @@
 // MetaMask signs each EIP-712 payment. The orchestrator yields AgentEvents
 // that the UI subscribes to.
 
-import { LedgerForgeClient, type InvokeResult, type SettlementReceipt } from '@ledgerforge/x402-mantle'
+import { LedgerForgeClient, type InvokeResult, type SettlementReceipt } from '@ishitaaaaw/x402-mantle'
 import { type WalletClient, type Hex } from 'viem'
 import type { AgentEvent, SettlementSummary } from './events'
 import type { AgentSpec, AgentStepSpec } from './specs'

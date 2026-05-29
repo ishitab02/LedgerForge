@@ -132,11 +132,11 @@ curl "https://ledgerforge-mantle.fly.dev/mantle-tvl-monitor" \
 ### SDK usage
 
 ```bash
-npm install @ledgerforge/x402-mantle
+npm install @ishitaaaaw/x402-mantle
 ```
 
 ```typescript
-import { LedgerForgeClient } from '@ledgerforge/x402-mantle'
+import { LedgerForgeClient } from '@ishitaaaaw/x402-mantle'
 
 const client = new LedgerForgeClient({
   facilitatorUrl: 'https://ledgerforge-facilitator.fly.dev',
@@ -230,7 +230,7 @@ See [AGENTS.md](./AGENTS.md) for the full runbook, Makefile targets, and known g
 | Track | Justification |
 |---|---|
 | **Agentic Wallets & Economy** (Byreal) | LedgerForge is payment infrastructure built specifically for autonomous agents: the x402 rail, EIP-3009 escrow, and per-execution stablecoin settlement are the core product — not a wrapper around an existing payment system |
-| **AI DevTools** | The `@ledgerforge/x402-mantle` TypeScript SDK and the Bazaar discovery API are developer tools: any developer can register a skill and start monetizing an agent capability in under 10 minutes |
+| **AI DevTools** | The `@ishitaaaaw/x402-mantle` TypeScript SDK and the Bazaar discovery API are developer tools: any developer can register a skill and start monetizing an agent capability in under 10 minutes |
 
 ---
 
@@ -239,7 +239,7 @@ See [AGENTS.md](./AGENTS.md) for the full runbook, Makefile targets, and known g
 1. **Facilitator settlement fee** — 0.2% (20 basis points) taken from every settled job. Scales linearly with marketplace payment volume. No fees on failed or cancelled jobs.
 2. **Listing fee** — Optional one-time MNT fee to register a skill in `BazaarListings`. Configurable per-deploy; set to zero for hackathon to bootstrap supply.
 3. **Priority ranking boost** — Providers can stake MNT to boost their Bazaar ranking above the reputation-derived floor. Staking revenue goes to a DAO treasury (post-hackathon roadmap item).
-4. **Hosted facilitator subscription** — Enterprise consumers using the `@ledgerforge/x402-mantle` SDK at high volume can subscribe to a rate-limited managed facilitator endpoint rather than self-hosting, paying a flat monthly fee.
+4. **Hosted facilitator subscription** — Enterprise consumers using the `@ishitaaaaw/x402-mantle` SDK at high volume can subscribe to a rate-limited managed facilitator endpoint rather than self-hosting, paying a flat monthly fee.
 
 ---
 

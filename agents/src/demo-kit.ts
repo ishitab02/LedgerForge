@@ -7,7 +7,7 @@ import {
   LedgerForgeClient,
   formatTokenAmount,
   type CallSkillOptions,
-} from "@ledgerforge/x402-mantle";
+} from "@ishitaaaaw/x402-mantle";
 
 export interface SettlementLog {
   skillId: number;

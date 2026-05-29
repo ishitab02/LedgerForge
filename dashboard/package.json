@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ledgerforge/x402-mantle": "^0.1.0",
+    "@ishitaaaaw/x402-mantle": "^0.1.0",
     "chart.js": "^4.4.0",
     "next": "^15.3.0",
     "react": "^19.0.0",
