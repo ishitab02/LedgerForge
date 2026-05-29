@@ -22,6 +22,7 @@ export default function Nav() {
         {[
           { href: '/bazaar', label: 'The Bazaar' },
           { href: '/jobs', label: 'Job Feed' },
+          { href: '/agent-demo', label: 'Agent Demo' },
           { href: '/list', label: 'List a Skill' },
         ].map(({ href, label }) => (
           <Link
