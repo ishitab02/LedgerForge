@@ -61,3 +61,4 @@ indexer/jobs_db.json
 agents/scout-runs/
 agents/perps-coach-runs/
 agents/spawn-auditor-runs/
+.vercel

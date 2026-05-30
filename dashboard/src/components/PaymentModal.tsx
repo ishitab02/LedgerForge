@@ -1,14 +1,27 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { createPublicClient, encodeFunctionData, http, type Address } from 'viem'
+import { mantle } from 'viem/chains'
 import type { Skill } from '@/lib/types'
 import { useWallet } from '@/context/WalletContext'
 import ReputationGauge from './ReputationGauge'
 import TierBadge from './TierBadge'
 import AddressChip from './AddressChip'
 
-const SKILL_REGISTRY = '0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992' as const
-const USDC_ADDRESS   = '0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9' as const
-const USDC_DECIMALS  = 6
+const SKILL_REGISTRY    = '0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992' as const
+const USDC_ADDRESS      = '0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9' as const
+const OPERATOR_ADDRESS  = '0xC0296012Cfbb0e6DF5dA7158B65Dbc46DD9650e0' as const
+const USDC_DECIMALS     = 6
+const MAX_UINT256       = 2n ** 256n - 1n
+
+const ERC20_ABI = [
+  { type: 'function', name: 'allowance', stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }],
+    outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'approve', stateMutability: 'nonpayable',
+    inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }],
+    outputs: [{ type: 'bool' }] },
+] as const
 
 interface PaymentModalProps {
   skill: Skill
@@ -31,6 +44,55 @@ export default function PaymentModal({ skill, onClose, onSuccess }: PaymentModal
   const fee = (skill.price * 0.002).toFixed(4)
   const providerCut = (skill.price * 0.998).toFixed(4)
   const stepIdx = STEP_INDEX[step]
+
+  const rawAmount = Math.round(skill.price * Math.pow(10, USDC_DECIMALS))
+  const amountBaseUnits = BigInt(rawAmount > 0 ? rawAmount : 50_000)
+
+  const [allowance, setAllowance] = useState<bigint | null>(null)
+  const [approving, setApproving] = useState(false)
+  const [approveErr, setApproveErr] = useState('')
+  const hasAllowance = allowance != null && allowance >= amountBaseUnits
+
+  useEffect(() => {
+    if (!account) { setAllowance(null); return }
+    let cancelled = false
+    const publicClient = createPublicClient({ chain: mantle, transport: http() })
+    publicClient.readContract({
+      address: USDC_ADDRESS, abi: ERC20_ABI, functionName: 'allowance',
+      args: [account as Address, OPERATOR_ADDRESS],
+    })
+      .then((a) => { if (!cancelled) setAllowance(a) })
+      .catch(() => { if (!cancelled) setAllowance(0n) })
+    return () => { cancelled = true }
+  }, [account])
+
+  async function handleApprove() {
+    if (!account) return
+    setApproveErr('')
+    setApproving(true)
+    try {
+      const data = encodeFunctionData({
+        abi: ERC20_ABI, functionName: 'approve',
+        args: [OPERATOR_ADDRESS, MAX_UINT256],
+      })
+      const hash = await window.ethereum!.request({
+        method: 'eth_sendTransaction',
+        params: [{ from: account, to: USDC_ADDRESS, data }],
+      }) as `0x${string}`
+      const publicClient = createPublicClient({ chain: mantle, transport: http() })
+      await publicClient.waitForTransactionReceipt({ hash })
+      const a = await publicClient.readContract({
+        address: USDC_ADDRESS, abi: ERC20_ABI, functionName: 'allowance',
+        args: [account as Address, OPERATOR_ADDRESS],
+      })
+      setAllowance(a)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Approve failed.'
+      setApproveErr(msg.toLowerCase().includes('user rejected') ? 'Approval rejected.' : msg)
+    } finally {
+      setApproving(false)
+    }
+  }
 
   async function handlePay() {
     setErrorMsg('')
@@ -185,6 +247,11 @@ export default function PaymentModal({ skill, onClose, onSuccess }: PaymentModal
             skill={skill} fee={fee} providerCut={providerCut}
             connected={!!account} account={account}
             onPay={handlePay} onCancel={onClose} connecting={connecting}
+            allowanceKnown={allowance != null}
+            hasAllowance={hasAllowance}
+            approving={approving}
+            approveErr={approveErr}
+            onApprove={handleApprove}
           />
         )}
         {step === 'signing' && <StepSigning />}
@@ -202,11 +269,18 @@ export default function PaymentModal({ skill, onClose, onSuccess }: PaymentModal
   )
 }
 
-function StepReview({ skill, fee, providerCut, connected, account, onPay, onCancel, connecting }: {
+function StepReview({
+  skill, fee, providerCut, connected, account, onPay, onCancel, connecting,
+  allowanceKnown, hasAllowance, approving, approveErr, onApprove,
+}: {
   skill: Skill; fee: string; providerCut: string
   connected: boolean; account: string | null
   onPay: () => void; onCancel: () => void; connecting: boolean
+  allowanceKnown: boolean; hasAllowance: boolean
+  approving: boolean; approveErr: string
+  onApprove: () => void
 }) {
+  const needsApproval = connected && allowanceKnown && !hasAllowance
   return (
     <>
       <h2 className="t-display" style={{ fontSize: 24, margin: '0 0 20px', letterSpacing: '-0.01em' }}>
@@ -272,9 +346,45 @@ function StepReview({ skill, fee, providerCut, connected, account, onPay, onCanc
         </div>
       )}
 
-      <button className="btn btn-primary btn-full btn-lg" onClick={onPay} disabled={connecting}>
-        {connecting ? 'Connecting…' : connected ? 'Sign payment' : 'Connect Wallet'}
-      </button>
+      {needsApproval && (
+        <div style={{
+          padding: '10px 12px', marginBottom: 12,
+          background: 'var(--lf-amber-bg, rgba(255,176,32,0.08))',
+          border: '1px solid var(--lf-amber, rgba(255,176,32,0.4))',
+          borderRadius: 6, fontFamily: 'var(--f-mono)', fontSize: 11,
+          color: 'var(--lf-ink-2)',
+        }}>
+          One-time setup: approve the facilitator operator to pull USDC.
+          No funds move until you sign the next step.
+        </div>
+      )}
+      {approveErr && (
+        <div style={{
+          padding: '8px 12px', marginBottom: 12, borderRadius: 6,
+          background: 'var(--lf-red-bg)', color: 'var(--lf-red)',
+          fontFamily: 'var(--f-mono)', fontSize: 11,
+        }}>
+          {approveErr}
+        </div>
+      )}
+
+      {!connected ? (
+        <button className="btn btn-primary btn-full btn-lg" onClick={onPay} disabled={connecting}>
+          {connecting ? 'Connecting…' : 'Connect Wallet'}
+        </button>
+      ) : needsApproval ? (
+        <button className="btn btn-primary btn-full btn-lg" onClick={onApprove} disabled={approving}>
+          {approving ? 'Approving…' : 'Approve operator (one-time)'}
+        </button>
+      ) : (
+        <button
+          className="btn btn-primary btn-full btn-lg"
+          onClick={onPay}
+          disabled={!allowanceKnown}
+        >
+          {!allowanceKnown ? 'Checking allowance…' : 'Sign payment'}
+        </button>
+      )}
       <div style={{ textAlign: 'center', marginTop: 12 }}>
         <button onClick={onCancel} style={{ color: 'var(--lf-ink-3)', fontSize: 13 }}>Cancel</button>
       </div>
