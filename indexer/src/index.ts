@@ -42,12 +42,19 @@ async function sync(): Promise<void> {
   console.log(`synced ${total} skills at ${new Date().toISOString()}`);
 }
 
-void sync();
+// Skills must finish syncing before the first jobs scan so JobRecord rows
+// don't bake in "unknown-skill" when the two run concurrently at startup.
+void (async () => {
+  try {
+    await sync();
+  } catch (err) {
+    console.error("initial skills sync failed:", (err as Error).message);
+  }
+  void pollJobs();
+})();
 setInterval(() => {
   void sync();
 }, POLL_INTERVAL);
-
-void pollJobs();
 setInterval(() => {
   void pollJobs();
 }, JOBS_POLL_INTERVAL);
