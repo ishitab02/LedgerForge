@@ -44,6 +44,17 @@ export interface Job {
   amount: string
   timestamp: string
   confirmed?: boolean
+  /**
+   * Five-leg ERC-8004 settlement chain. All five may be absent ("" or
+   * undefined) for legacy / unconfirmed jobs — render dimmed in that case.
+   */
+  pullTx?: string
+  createJobTx?: string
+  completeJobTx?: string
+  skillRegistryRepTx?: string
+  erc8004FeedbackTx?: string
+  /** Indexer-side classification: real on-chain job vs. system/synthetic. */
+  kind?: 'real' | 'system'
 }
 
 export type SortKey = 'reputation' | 'jobs' | 'newest' | 'price-low'

@@ -129,7 +129,8 @@ app.get("/jobs", (req, res) => {
       limit = Math.min(parsed, 1000);
     }
   }
-  res.json(getJobs(limit));
+  const includeSystem = String(req.query.includeSystem ?? "").toLowerCase() === "true";
+  res.json(getJobs(limit, { includeSystem }));
 });
 
 app.get("/health", (_req, res) => {

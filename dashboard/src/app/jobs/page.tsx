@@ -8,6 +8,7 @@ import ScorePill from '@/components/ScorePill'
 import TierBadge from '@/components/TierBadge'
 import AddressChip from '@/components/AddressChip'
 import ReputationGauge from '@/components/ReputationGauge'
+import JobSettlementChain from '@/components/jobs/JobSettlementChain'
 
 const CONTRACTS = {
   SkillRegistry: '0x37041F257Bf8f1E201497Dc0BCDa1ae0d8317992',
@@ -55,7 +56,11 @@ export default function JobsPage() {
   }, [])
 
   const blockNum = BASE_BLOCK + Math.floor(tick * 2.3)
-  const totalVolume = jobs.reduce((sum, j) => sum + parseFloat(j.amount || '0'), 0)
+  // Defensive client-side filter: indexer also filters server-side, but during
+  // the rollout window some jobs may still arrive without a `kind` field —
+  // treat those as real to avoid hiding legitimate history.
+  const visibleJobs = jobs.filter((j) => j.kind === undefined || j.kind === 'real')
+  const totalVolume = visibleJobs.reduce((sum, j) => sum + parseFloat(j.amount || '0'), 0)
   const topSkill = skills.find((s) => s.id === '1') ?? skills[0]
 
   return (
@@ -84,14 +89,14 @@ export default function JobsPage() {
               <LiveDot /> Polling every 15s
             </span>
             <span>
-              {jobs.filter((j) => j.confirmed).length} confirmed job{jobs.filter((j) => j.confirmed).length !== 1 ? 's' : ''} · ${totalVolume.toFixed(2)} USDC settled on Mantle
+              {visibleJobs.filter((j) => j.confirmed).length} confirmed job{visibleJobs.filter((j) => j.confirmed).length !== 1 ? 's' : ''} · ${totalVolume.toFixed(2)} USDC settled on Mantle
             </span>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 32 }}>
           <div>
-            {jobs.some((j) => j.confirmed) && (
+            {visibleJobs.some((j) => j.confirmed) && (
               <div style={{
                 padding: '10px 16px',
                 background: 'rgba(15, 190, 127, 0.06)',
@@ -106,7 +111,7 @@ export default function JobsPage() {
               </div>
             )}
 
-            {jobs.length === 0 ? (
+            {visibleJobs.length === 0 ? (
               <div style={{
                 padding: '40px 24px', border: '1px dashed var(--lf-border)', borderRadius: 6,
                 textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
@@ -124,45 +129,69 @@ export default function JobsPage() {
                 </div>
               </div>
             ) : (
-              <div className="card" style={{ overflow: 'hidden' }}>
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Timestamp</th>
-                      <th>Skill</th>
-                      <th>Score</th>
-                      <th>Consumer</th>
-                      <th>Tx Hash</th>
-                      <th style={{ textAlign: 'right' }}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {jobs.map((j, i) => (
-                      <tr key={j.id} className={j.confirmed ? 'highlight' : ''}>
-                        <td style={{ fontFamily: 'var(--f-mono)', color: 'var(--lf-ink-2)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {visibleJobs.map((j) => (
+                  <div
+                    key={j.id}
+                    className="card"
+                    style={{
+                      padding: 16,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12,
+                      borderLeft: j.confirmed
+                        ? '2px solid var(--lf-accent)'
+                        : '2px solid transparent',
+                    }}
+                  >
+                    {/* Headline: full 5-leg ERC-8004 settlement chain */}
+                    <JobSettlementChain
+                      pullTx={j.pullTx}
+                      createJobTx={j.createJobTx}
+                      completeJobTx={j.completeJobTx ?? j.settlementTx}
+                      skillRegistryRepTx={j.skillRegistryRepTx}
+                      erc8004FeedbackTx={j.erc8004FeedbackTx}
+                    />
+
+                    {/* Metadata footer */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        flexWrap: 'wrap',
+                        fontSize: 12,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'var(--f-mono)', color: 'var(--lf-ink-3)' }}>
                           {formatTime(j.timestamp)}
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <TierBadge tier={j.skillTier} />
-                            <Link
-                              href={`/skill/${j.skillId}`}
-                              style={{ cursor: 'pointer', fontFamily: 'var(--f-mono)', fontSize: 13, color: 'var(--lf-accent)' }}
-                            >
-                              {j.skillName}
-                            </Link>
-                          </div>
-                        </td>
-                        <td><ScorePill score={j.score} /></td>
-                        <td><AddressChip address={j.consumer} /></td>
-                        <td><AddressChip address={j.settlementTx} head={6} tail={4} /></td>
-                        <td style={{ textAlign: 'right', fontFamily: 'var(--f-mono)', fontWeight: 500 }}>
-                          {j.amount} <span style={{ color: 'var(--lf-ink-3)' }}>USDC</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </span>
+                        <TierBadge tier={j.skillTier} />
+                        <Link
+                          href={`/skill/${j.skillId}`}
+                          style={{
+                            cursor: 'pointer',
+                            fontFamily: 'var(--f-mono)',
+                            fontSize: 13,
+                            color: 'var(--lf-accent)',
+                          }}
+                        >
+                          {j.skillName}
+                        </Link>
+                        <ScorePill score={j.score} />
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--lf-ink-3)' }}>
+                          <span style={{ fontFamily: 'var(--f-mono-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>by</span>
+                          <AddressChip address={j.consumer} />
+                        </span>
+                      </div>
+                      <span style={{ fontFamily: 'var(--f-mono)', fontWeight: 500, fontSize: 14 }}>
+                        {j.amount} <span style={{ color: 'var(--lf-ink-3)' }}>USDC</span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -198,8 +227,8 @@ export default function JobsPage() {
                 Total settled on Mantle
               </div>
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--lf-border)', fontSize: 12, color: 'var(--lf-ink-2)', display: 'flex', justifyContent: 'space-between' }}>
-                <span>{jobs.length} settlement{jobs.length !== 1 ? 's' : ''}</span>
-                <span>{new Set(jobs.map((j) => j.consumer)).size} unique consumer{new Set(jobs.map((j) => j.consumer)).size !== 1 ? 's' : ''}</span>
+                <span>{visibleJobs.length} settlement{visibleJobs.length !== 1 ? 's' : ''}</span>
+                <span>{new Set(visibleJobs.map((j) => j.consumer)).size} unique consumer{new Set(visibleJobs.map((j) => j.consumer)).size !== 1 ? 's' : ''}</span>
               </div>
             </div>
 
