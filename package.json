@@ -1,0 +1,17 @@
+{
+  "name": "ledgerforge",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "contracts",
+    "facilitator",
+    "indexer",
+    "dashboard",
+    "sdk",
+    "agents"
+  ],
+  "scripts": {
+    "build": "echo \"build each workspace directly\"",
+    "test": "echo \"run workspace tests directly\""
+  }
+}
