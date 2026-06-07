@@ -34,15 +34,6 @@ export async function* runReplay<T>(
   opts: { stepDelayMs?: number } = {},
 ): AsyncIterable<AgentEvent> {
   const stepDelay = opts.stepDelayMs ?? 1500
-  const pinned = spec.pinnedReplayJobIds ?? []
-  if (pinned.length === 0) {
-    yield {
-      type: 'aborted',
-      reason:
-        'No pinned replay run for this agent yet — try the live mode (Run with MetaMask).',
-    }
-    return
-  }
 
   yield { type: 'started' }
 
@@ -60,22 +51,42 @@ export async function* runReplay<T>(
     return
   }
 
-  const jobsByJobId = new Map<string, JobRecord>()
-  for (const job of allJobs) jobsByJobId.set(String(job.jobId), job)
+  // Match settlements by skillId rather than hardcoded jobIds: the indexer's
+  // settlement history is rebuilt from chain events and jobIds are not stable
+  // across re-syncs, so pinned ids go stale. We group the most-recent settled
+  // jobs per skill and consume one per step — this also handles a spec that
+  // calls the same skill multiple times (e.g. perps signals for BTC/ETH/SOL).
+  const jobsBySkillId = new Map<string, JobRecord[]>()
+  for (const job of allJobs) {
+    const key = String(job.skillId)
+    if (!jobsBySkillId.has(key)) jobsBySkillId.set(key, [])
+    jobsBySkillId.get(key)!.push(job)
+  }
+
+  const matchableSteps = spec.steps.filter(
+    (step) => (jobsBySkillId.get(String(step.skillId))?.length ?? 0) > 0,
+  ).length
+  if (matchableSteps === 0) {
+    yield {
+      type: 'aborted',
+      reason:
+        "No historical settlements found for this agent's skills yet — run it live with MetaMask to generate them.",
+    }
+    return
+  }
 
   const settlements: SettlementSummary[] = []
   const outputs: unknown[] = new Array(spec.steps.length).fill(undefined)
 
-  // Walk steps in spec order, matching pinned jobIds by index. Steps with no
-  // matching jobId (e.g. swap-preview when the run didn't enter the pool) are
-  // emitted as skipped.
+  // Walk steps in spec order, consuming the newest unused settled job for each
+  // step's skillId. Steps with no remaining settlement are emitted as skipped.
   for (let i = 0; i < spec.steps.length; i++) {
-    const pinnedJobId = pinned[i]
-    if (pinnedJobId === undefined) {
+    const queue = jobsBySkillId.get(String(spec.steps[i].skillId))
+    if (!queue || queue.length === 0) {
       yield {
         type: 'step-skipped',
         stepIndex: i,
-        reason: 'no historical settlement pinned for this step',
+        reason: `no settled job found for skillId ${spec.steps[i].skillId}`,
       }
       continue
     }
@@ -83,15 +94,7 @@ export async function* runReplay<T>(
     yield { type: 'step-running', stepIndex: i }
     await sleep(stepDelay)
 
-    const job = jobsByJobId.get(String(pinnedJobId))
-    if (!job) {
-      yield {
-        type: 'step-failed',
-        stepIndex: i,
-        error: `pinned jobId ${pinnedJobId} not found in /jobs response`,
-      }
-      continue
-    }
+    const job = queue.shift()!
 
     const settlement: SettlementSummary = {
       skillId: spec.steps[i].skillId,

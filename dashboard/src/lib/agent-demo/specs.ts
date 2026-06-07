@@ -27,7 +27,11 @@ export interface AgentSpec<DecisionT = unknown> {
   decide: (outputs: unknown[]) => DecisionT;
   /** After-decision steps (e.g. swap-preview) may want to re-derive enriched info — optional hook. */
   enrichDecision?: (decision: DecisionT, outputs: unknown[]) => DecisionT;
-  /** Pinned historical jobIds for replay mode (read from /jobs API). */
+  /**
+   * @deprecated Replay now matches settlements by skillId from the /jobs API
+   * (see replay.ts). Hardcoded jobIds went stale whenever the indexer re-synced
+   * its settlement history. Kept optional for backwards compatibility; unused.
+   */
   pinnedReplayJobIds?: number[];
 }
 
@@ -92,8 +96,6 @@ export const SCOUT_SPEC: AgentSpec<ScoutDecision> = {
     if (swap === undefined) return decision;
     return { ...decision, swap: distillSwapPreview(swap) };
   },
-  // Pinned successful run from 2026-05-28 (5 settlements).
-  pinnedReplayJobIds: [26, 27, 28, 29, 30],
 };
 
 // ─── Perps Coach ──────────────────────────────────────────────────────────
@@ -127,8 +129,6 @@ export const PERPS_COACH_SPEC: AgentSpec<PerpsDecision> = {
     const signalOutputs = outputs.slice(0, DEFAULT_PERPS_POSITIONS.length);
     return decidePerps(DEFAULT_PERPS_POSITIONS, signalOutputs);
   },
-  // Pinned run: jobIds 32-36 (BTC/ETH/SOL signals + prices + gas, 2026-05-29).
-  pinnedReplayJobIds: [32, 33, 34, 35, 36],
 };
 
 // ─── Spawn Auditor ────────────────────────────────────────────────────────
@@ -167,8 +167,6 @@ export const SPAWN_AUDITOR_SPEC: AgentSpec<SpawnDecision> = {
       lineageContext: outputs[1],
       verifier: outputs[2],
     }),
-  // Pinned run: jobIds 37-39 (failure-analyst, lineage-context, decision-verifier; 2026-05-29).
-  pinnedReplayJobIds: [37, 38, 39],
 };
 
 export const ALL_SPECS = [SCOUT_SPEC, PERPS_COACH_SPEC, SPAWN_AUDITOR_SPEC];

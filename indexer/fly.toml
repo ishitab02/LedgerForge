@@ -15,6 +15,14 @@ primary_region = "sin"
   ERC8004_REPUTATION_REGISTRY = "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63"
   JOBS_BLOCK_LOOKBACK     = "200000"
   JOBS_MAX_RANGE_PER_CALL = "2000"
+  # Persist the JSON DBs on the mounted volume so settlement history survives
+  # restarts/redeploys (the startup backfill merges new events into this file).
+  INDEXER_DB_PATH         = "/data/skill_db.json"
+  JOBS_DB_PATH            = "/data/jobs_db.json"
+
+[[mounts]]
+  source      = "lf_indexer_data"
+  destination = "/data"
 
 [[services]]
   internal_port = 3002
